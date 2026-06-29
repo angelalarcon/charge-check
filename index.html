@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EV Charger Status — IMESAPI</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <style>
+    @keyframes pulse-green {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(74,222,128,.4); }
+      60%       { box-shadow: 0 0 0 10px rgba(74,222,128,0); }
+    }
+    @keyframes pulse-blue {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(96,165,250,.4); }
+      60%       { box-shadow: 0 0 0 10px rgba(96,165,250,0); }
+    }
+    .glow-green { animation: pulse-green 2s infinite; }
+    .glow-blue  { animation: pulse-blue  1.6s infinite; }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 min-h-screen text-white">
+
+  <div class="max-w-2xl mx-auto px-4 py-12">
+
+    <!-- Header -->
+    <div class="text-center mb-10">
+      <div class="inline-flex items-center gap-3 mb-2">
+        <div class="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center">
+          <i class="fas fa-charging-station text-lg"></i>
+        </div>
+        <h1 class="text-2xl font-bold tracking-tight">EV Charger Status</h1>
+      </div>
+      <p class="text-slate-400 text-sm mt-1">IMESAPI · Santa Cruz de Tenerife</p>
+      <p id="ts" class="text-slate-600 text-xs mt-1">Loading…</p>
+    </div>
+
+    <!-- Cards -->
+    <div id="grid" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <!-- skeleton -->
+      <div class="bg-slate-800/50 rounded-2xl h-36 animate-pulse"></div>
+      <div class="bg-slate-800/50 rounded-2xl h-36 animate-pulse"></div>
+      <div class="bg-slate-800/50 rounded-2xl h-36 animate-pulse"></div>
+      <div class="bg-slate-800/50 rounded-2xl h-36 animate-pulse"></div>
+    </div>
+
+    <!-- Error banner -->
+    <div id="err" class="hidden mt-6 bg-red-950/60 border border-red-800 rounded-xl px-4 py-3 text-sm text-red-300 text-center">
+      <i class="fas fa-triangle-exclamation mr-2"></i><span id="err-msg"></span>
+      <p class="text-xs text-red-500 mt-1">
+        The public CORS proxy may be rate-limited. Try again in a moment, or
+        run <code class="bg-red-950 px-1 rounded">python3 server.py</code> for a reliable local proxy.
+      </p>
+    </div>
+
+    <!-- Refresh -->
+    <div class="text-center mt-8">
+      <button id="btn" onclick="load()"
+        class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 active:scale-95 transition-all px-6 py-2 rounded-full text-sm font-medium shadow-lg disabled:opacity-40">
+        <i id="ico" class="fas fa-sync-alt"></i>Refresh
+      </button>
+    </div>
+
+    <!-- Legend -->
+    <div class="mt-8 flex flex-wrap justify-center gap-5 text-xs text-slate-400">
+      <span class="flex items-center gap-2">
+        <span class="w-7 h-7 rounded-full bg-green-500 flex items-center justify-center shrink-0">
+          <i class="fas fa-plug text-white text-[11px]"></i>
+        </span>Available
+      </span>
+      <span class="flex items-center gap-2">
+        <span class="w-7 h-7 rounded-full bg-blue-500 flex items-center justify-center shrink-0">
+          <i class="fas fa-bolt text-white text-[11px]"></i>
+        </span>Busy
+      </span>
+      <span class="flex items-center gap-2">
+        <span class="w-7 h-7 rounded-full bg-gray-950 border border-gray-600 flex items-center justify-center shrink-0">
+          <i class="fas fa-ban text-white text-[11px]"></i>
+        </span>Unavailable
+      </span>
+    </div>
+
+    <p class="text-center text-slate-700 text-xs mt-5">
+      <i class="fas fa-clock mr-1"></i>Auto-refreshes every 30 s
+    </p>
+  </div>
+
+  <script>
+    // Status codes from etecnic.es page source:
+    //  0 = Disponible  1 = Ocupado  2 = Reservado  3 = Fuera servicio  9 = Error
+    const STATUS = {
+      0: { label: 'Available',   es: 'Disponible',        bg: 'bg-green-500',          glow: 'glow-green', icon: 'fa-plug', border: 'border-green-500/20' },
+      1: { label: 'Busy',        es: 'Ocupado',           bg: 'bg-blue-500',           glow: 'glow-blue',  icon: 'fa-bolt', border: 'border-blue-500/20'  },
+      2: { label: 'Reserved',    es: 'Reservado',         bg: 'bg-blue-500',           glow: 'glow-blue',  icon: 'fa-bolt', border: 'border-blue-500/20'  },
+      3: { label: 'Unavailable', es: 'Fuera de servicio', bg: 'bg-gray-950',           glow: '',           icon: 'fa-ban',  border: 'border-gray-700/40'  },
+      9: { label: 'Unavailable', es: 'Error',             bg: 'bg-gray-950',           glow: '',           icon: 'fa-ban',  border: 'border-gray-700/40'  },
+    };
+
+    const TARGETS = ['IMESAPI - SELBA EdRSR 12', 'IMESAPI - SELBA EdRSR 16'];
+
+    // Primary: CORS proxy (the API restricts ACAO to https://etecnic.es,
+    // so we route through a proxy that adds ACAO: * on the way back).
+    // Fallback: local server.py proxy on port 5000.
+    const PROXY_URL  = 'https://api.allorigins.win/get?url=' +
+                       encodeURIComponent('https://etecnic.net/api/v1/chargers/index.json');
+    const LOCAL_URL  = '/api/chargers';   // only works when server.py is running
+
+    function cfg(code) {
+      return STATUS[code] ?? {
+        label: 'Unknown', es: '—', bg: 'bg-slate-600', glow: '', icon: 'fa-question', border: 'border-slate-600/20'
+      };
+    }
+
+    function card(station, socket) {
+      const c = cfg(socket.status);
+      const textColor = c.bg.replace('bg-', 'text-');
+      return `
+        <div class="bg-slate-800/70 border ${c.border} rounded-2xl p-5 flex items-start justify-between gap-4">
+          <div class="flex-1 min-w-0">
+            <p class="text-[10px] font-semibold uppercase tracking-widest text-slate-500 mb-1">Socket ${socket.socket_number}</p>
+            <h2 class="text-sm font-semibold text-white leading-snug">${station.name}</h2>
+            <p class="text-xs text-slate-400 mt-1 truncate">${station.address}</p>
+            <p class="mt-3 text-sm font-bold ${textColor}">${c.label}</p>
+            <p class="text-[10px] text-slate-600">${c.es}</p>
+          </div>
+          <div class="w-14 h-14 shrink-0 rounded-full ${c.bg} ${c.glow} flex items-center justify-center shadow-lg">
+            <i class="fas ${c.icon} text-white text-xl"></i>
+          </div>
+        </div>`;
+    }
+
+    function render(data) {
+      const stations = data
+        .filter(s => TARGETS.includes(s.name))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      if (!stations.length) throw new Error('Target stations not found in API response');
+
+      const cards = stations.flatMap(s =>
+        s.charger_sockets
+          .sort((a, b) => a.socket_number - b.socket_number)
+          .slice(0, 2)
+          .map(sk => card(s, sk))
+      );
+
+      document.getElementById('grid').innerHTML = cards.join('');
+      document.getElementById('ts').textContent =
+        'Last updated: ' + new Date().toLocaleTimeString();
+      document.getElementById('err').classList.add('hidden');
+    }
+
+    async function tryLocal() {
+      const r = await fetch(LOCAL_URL, { signal: AbortSignal.timeout(5000) });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();   // local server returns plain JSON array
+    }
+
+    async function tryProxy() {
+      const r = await fetch(PROXY_URL, { signal: AbortSignal.timeout(15000) });
+      if (!r.ok) throw new Error(`Proxy HTTP ${r.status}`);
+      const wrap = await r.json();
+      return JSON.parse(wrap.contents);   // allorigins wraps body in .contents
+    }
+
+    async function load() {
+      const btn = document.getElementById('btn');
+      const ico = document.getElementById('ico');
+      btn.disabled = true;
+      ico.style.transition = 'transform .5s ease';
+      ico.style.transform = 'rotate(360deg)';
+      setTimeout(() => { ico.style.transition = ''; ico.style.transform = ''; }, 550);
+
+      let data;
+      try {
+        // Try local proxy first (instant if server.py is running)
+        data = await tryLocal().catch(() => null);
+        if (!data) {
+          // Fall back to public CORS proxy
+          data = await tryProxy();
+        }
+        render(data);
+      } catch (e) {
+        document.getElementById('err-msg').textContent = e.message;
+        document.getElementById('err').classList.remove('hidden');
+        document.getElementById('ts').textContent = 'Failed — ' + new Date().toLocaleTimeString();
+        document.getElementById('grid').innerHTML = '';
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    load();
+    setInterval(load, 30_000);
+  </script>
+
+</body>
+</html>
