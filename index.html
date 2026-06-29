@@ -33,6 +33,7 @@
       </div>
       <p class="text-slate-400 text-sm mt-1">IMESAPI · Santa Cruz de Tenerife</p>
       <p id="ts" class="text-slate-600 text-xs mt-1">Loading…</p>
+      <p id="sun" class="text-slate-700 text-xs mt-0.5"></p>
     </div>
 
     <!-- Cards -->
@@ -75,6 +76,11 @@
           <i class="fas fa-ban text-white text-[11px]"></i>
         </span>Unavailable
       </span>
+      <span class="flex items-center gap-2">
+        <span class="w-7 h-7 rounded-full bg-slate-950 border border-slate-600 flex items-center justify-center shrink-0">
+          <i class="fas fa-moon text-slate-400 text-[11px]"></i>
+        </span>Night closure
+      </span>
     </div>
 
     <p class="text-center text-slate-700 text-xs mt-5">
@@ -83,21 +89,48 @@
   </div>
 
   <script>
-    // Status codes from etecnic.es page source:
-    //  0 = Disponible  1 = Ocupado  2 = Reservado  3 = Fuera servicio  9 = Error
     const STATUS = {
-      0: { label: 'Available',   es: 'Disponible',        bg: 'bg-green-500',          glow: 'glow-green', icon: 'fa-plug', border: 'border-green-500/20' },
-      1: { label: 'Busy',        es: 'Ocupado',           bg: 'bg-blue-500',           glow: 'glow-blue',  icon: 'fa-bolt', border: 'border-blue-500/20'  },
-      2: { label: 'Reserved',    es: 'Reservado',         bg: 'bg-blue-500',           glow: 'glow-blue',  icon: 'fa-bolt', border: 'border-blue-500/20'  },
-      3: { label: 'Unavailable', es: 'Fuera de servicio', bg: 'bg-gray-950',           glow: '',           icon: 'fa-ban',  border: 'border-gray-700/40'  },
-      9: { label: 'Unavailable', es: 'Error',             bg: 'bg-gray-950',           glow: '',           icon: 'fa-ban',  border: 'border-gray-700/40'  },
+      0: { label: 'Available',   es: 'Disponible',        bg: 'bg-green-500', glow: 'glow-green', icon: 'fa-plug', border: 'border-green-500/20' },
+      1: { label: 'Busy',        es: 'Ocupado',           bg: 'bg-blue-500',  glow: 'glow-blue',  icon: 'fa-bolt', border: 'border-blue-500/20'  },
+      2: { label: 'Reserved',    es: 'Reservado',         bg: 'bg-blue-500',  glow: 'glow-blue',  icon: 'fa-bolt', border: 'border-blue-500/20'  },
+      3: { label: 'Unavailable', es: 'Fuera de servicio', bg: 'bg-gray-950',  glow: '',           icon: 'fa-ban',  border: 'border-gray-700/40'  },
+      9: { label: 'Unavailable', es: 'Error',             bg: 'bg-gray-950',  glow: '',           icon: 'fa-ban',  border: 'border-gray-700/40'  },
     };
 
-    const TARGETS = ['IMESAPI - SELBA EdRSR 12', 'IMESAPI - SELBA EdRSR 16'];
+    const NIGHT_CLOSURE = {
+      label: 'Night closure', es: 'Cierre nocturno',
+      bg: 'bg-slate-950', glow: '', icon: 'fa-moon', border: 'border-slate-700/40',
+    };
+
+    const TARGETS      = ['IMESAPI - SELBA EdRSR 12', 'IMESAPI - SELBA EdRSR 16'];
+    const NIGHT_STATION = 'IMESAPI - SELBA EdRSR 16';
 
     const PROXY_URL  = 'https://api.allorigins.win/get?url=' +
                        encodeURIComponent('https://etecnic.net/api/v1/chargers/index.json');
     const LOCAL_URLS = ['/.netlify/functions/chargers', '/api/chargers'];
+
+    // Tenerife: 28.4636°N 16.2518°W
+    const SUN_URL = 'https://api.sunrise-sunset.org/json?lat=28.4636&lng=-16.2518&formatted=0';
+    let sunCache = null; // { date, sunrise, sunset }
+
+    async function getSunTimes() {
+      const today = new Date().toISOString().slice(0, 10);
+      if (sunCache && sunCache.date === today) return sunCache;
+      const r = await fetch(SUN_URL + '&date=' + today, { signal: AbortSignal.timeout(8000) });
+      const { results, status } = await r.json();
+      if (status !== 'OK') throw new Error('Sun API error');
+      sunCache = { date: today, sunrise: new Date(results.sunrise), sunset: new Date(results.sunset) };
+      return sunCache;
+    }
+
+    function isNight(sun) {
+      const now = new Date();
+      return now < sun.sunrise || now > sun.sunset;
+    }
+
+    function fmt(d) {
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
 
     function cfg(code) {
       return STATUS[code] ?? {
@@ -105,9 +138,10 @@
       };
     }
 
-    function card(station, socket) {
-      const c = cfg(socket.status);
+    function card(station, socket, night = false) {
+      const c = night ? NIGHT_CLOSURE : cfg(socket.status);
       const textColor = c.bg.replace('bg-', 'text-');
+      const iconColor = night ? 'text-slate-400' : 'text-white';
       return `
         <div class="bg-slate-800/70 border ${c.border} rounded-2xl p-5 flex items-start justify-between gap-4">
           <div class="flex-1 min-w-0">
@@ -117,29 +151,33 @@
             <p class="mt-3 text-sm font-bold ${textColor}">${c.label}</p>
             <p class="text-[10px] text-slate-600">${c.es}</p>
           </div>
-          <div class="w-14 h-14 shrink-0 rounded-full ${c.bg} ${c.glow} flex items-center justify-center shadow-lg">
-            <i class="fas ${c.icon} text-white text-xl"></i>
+          <div class="w-14 h-14 shrink-0 rounded-full ${c.bg} border border-slate-700/30 ${c.glow} flex items-center justify-center shadow-lg">
+            <i class="fas ${c.icon} ${iconColor} text-xl"></i>
           </div>
         </div>`;
     }
 
-    function render(data) {
+    function render(data, sun) {
+      const night = sun ? isNight(sun) : false;
       const stations = data
         .filter(s => TARGETS.includes(s.name))
         .sort((a, b) => a.name.localeCompare(b.name));
 
       if (!stations.length) throw new Error('Target stations not found in API response');
 
-      const cards = stations.flatMap(s =>
-        s.charger_sockets
+      const cards = stations.flatMap(s => {
+        const forceNight = night && s.name === NIGHT_STATION;
+        return s.charger_sockets
           .sort((a, b) => a.socket_number - b.socket_number)
           .slice(0, 2)
-          .map(sk => card(s, sk))
-      );
+          .map(sk => card(s, sk, forceNight));
+      });
 
       document.getElementById('grid').innerHTML = cards.join('');
-      document.getElementById('ts').textContent =
-        'Last updated: ' + new Date().toLocaleTimeString();
+      document.getElementById('ts').textContent = 'Last updated: ' + new Date().toLocaleTimeString();
+      document.getElementById('sun').textContent = sun
+        ? `☀️ Sunrise ${fmt(sun.sunrise)} · 🌙 Sunset ${fmt(sun.sunset)}`
+        : '';
       document.getElementById('err').classList.add('hidden');
     }
 
@@ -157,7 +195,7 @@
       const r = await fetch(PROXY_URL, { signal: AbortSignal.timeout(15000) });
       if (!r.ok) throw new Error(`Proxy HTTP ${r.status}`);
       const wrap = await r.json();
-      return JSON.parse(wrap.contents);   // allorigins wraps body in .contents
+      return JSON.parse(wrap.contents);
     }
 
     async function load() {
@@ -168,15 +206,18 @@
       ico.style.transform = 'rotate(360deg)';
       setTimeout(() => { ico.style.transition = ''; ico.style.transform = ''; }, 550);
 
-      let data;
       try {
-        // Try local proxy first (instant if server.py is running)
-        data = await tryLocal().catch(() => null);
-        if (!data) {
-          // Fall back to public CORS proxy
-          data = await tryProxy();
-        }
-        render(data);
+        const [dataResult, sunResult] = await Promise.allSettled([
+          (async () => {
+            const d = await tryLocal().catch(() => null);
+            return d ?? await tryProxy();
+          })(),
+          getSunTimes(),
+        ]);
+
+        if (dataResult.status === 'rejected') throw dataResult.reason;
+        const sun = sunResult.status === 'fulfilled' ? sunResult.value : null;
+        render(dataResult.value, sun);
       } catch (e) {
         document.getElementById('err-msg').textContent = e.message;
         document.getElementById('err').classList.remove('hidden');
