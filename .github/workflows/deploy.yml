@@ -8,7 +8,9 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger Netlify build
-        run: |
-          curl -s -X POST https://api.netlify.com/build_hooks/6a42e2bdc4e2e770bbece533
-          echo "Deploy triggered → https://charge-check.netlify.app"
+      - uses: actions/checkout@v4
+
+      - name: Deploy to Netlify
+        run: npx netlify-cli deploy --prod --dir . --site ${{ secrets.NETLIFY_SITE_ID }}
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
