@@ -1,0 +1,14 @@
+name: Deploy to Netlify
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Netlify build
+        run: |
+          curl -s -X POST https://api.netlify.com/build_hooks/6a42e2bdc4e2e770bbece533
+          echo "Deploy triggered → https://charge-check.netlify.app"
