@@ -1,4 +1,4 @@
-const CACHE = 'ev-v1';
+const CACHE = 'ev-v2';
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.add('/')));
@@ -12,6 +12,30 @@ self.addEventListener('activate', e => {
     )
   );
   self.clients.claim();
+});
+
+self.addEventListener('push', e => {
+  const data = e.data ? e.data.json() : {};
+  e.waitUntil(
+    self.registration.showNotification(data.title || 'Charger available', {
+      body: data.body || '',
+      icon: '/.netlify/functions/icon',
+      badge: '/.netlify/functions/icon',
+      tag: 'ev-charger',
+      renotify: true,
+      data: { url: data.url || '/' },
+    })
+  );
+});
+
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+      const open = list.find(c => 'focus' in c);
+      return open ? open.focus() : clients.openWindow('/');
+    })
+  );
 });
 
 self.addEventListener('fetch', e => {

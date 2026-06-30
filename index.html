@@ -59,13 +59,19 @@
       <p class="text-xs text-red-500 mt-1">The upstream API may be temporarily unavailable. Try again in a moment.</p>
     </div>
 
-    <!-- Refresh -->
-    <div class="text-center mt-8">
+    <!-- Refresh + Notify -->
+    <div class="flex items-center justify-center gap-3 mt-8">
       <button id="btn" onclick="load()"
         class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 active:scale-95 transition-all px-6 py-2 rounded-full text-sm font-medium shadow-lg disabled:opacity-40">
         <i id="ico" class="fas fa-sync-alt"></i>Refresh
       </button>
+      <button id="notify-btn" onclick="toggleNotify()"
+        class="hidden w-10 h-10 rounded-full flex items-center justify-center transition-all active:scale-95 shadow-lg"
+        title="Notify me when a spot opens">
+        <i id="notify-ico" class="fas fa-bell-slash text-sm"></i>
+      </button>
     </div>
+    <p id="notify-msg" class="hidden text-center text-xs mt-2"></p>
 
     <!-- Legend -->
     <div class="mt-8 flex flex-wrap justify-center gap-5 text-xs text-slate-400">
@@ -315,8 +321,87 @@
     load();
     setInterval(load, 30_000);
 
+    // ── Web Push notifications ───────────────────────────────────────
+    const VAPID_PUBLIC = 'BKjU05zV18M_uXynTIT5UYr_DeMdjFMB8pVBkbUr8_rIalzoBlzg-xCPp_S6yHn_p9Vs7IlJhLodgZ8aSrkZVzQ';
+
+    function urlB64ToUint8(b64) {
+      const pad = '='.repeat((4 - b64.length % 4) % 4);
+      const b = atob((b64 + pad).replace(/-/g, '+').replace(/_/g, '/'));
+      return Uint8Array.from([...b].map(c => c.charCodeAt(0)));
+    }
+
+    async function getSub() {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) return null;
+      const reg = await navigator.serviceWorker.ready;
+      return reg.pushManager.getSubscription();
+    }
+
+    async function updateNotifyUI() {
+      const btn = document.getElementById('notify-btn');
+      const ico = document.getElementById('notify-ico');
+      const msg = document.getElementById('notify-msg');
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+
+      btn.classList.remove('hidden');
+      const sub = await getSub();
+
+      if (Notification.permission === 'denied') {
+        btn.className = btn.className.replace('hidden', '') + ' bg-slate-800 opacity-40 cursor-not-allowed';
+        btn.title = 'Notifications blocked — enable in browser settings';
+        ico.className = 'fas fa-bell-slash text-sm text-slate-500';
+        return;
+      }
+
+      if (sub) {
+        btn.className = 'w-10 h-10 rounded-full flex items-center justify-center transition-all active:scale-95 shadow-lg bg-blue-600 hover:bg-blue-500';
+        btn.title = 'Notifications on — tap to turn off';
+        ico.className = 'fas fa-bell text-sm text-white';
+      } else {
+        btn.className = 'w-10 h-10 rounded-full flex items-center justify-center transition-all active:scale-95 shadow-lg bg-slate-700 hover:bg-slate-600';
+        btn.title = 'Notify me when a spot opens';
+        ico.className = 'fas fa-bell-slash text-sm text-slate-300';
+      }
+      msg.classList.add('hidden');
+    }
+
+    async function toggleNotify() {
+      const msg = document.getElementById('notify-msg');
+      const sub = await getSub();
+      try {
+        if (sub) {
+          await fetch('/.netlify/functions/unsubscribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ endpoint: sub.endpoint }),
+          });
+          await sub.unsubscribe();
+        } else {
+          const reg = await navigator.serviceWorker.ready;
+          const newSub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlB64ToUint8(VAPID_PUBLIC),
+          });
+          const r = await fetch('/.netlify/functions/subscribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newSub),
+          });
+          if (!r.ok) throw new Error('server error');
+          msg.textContent = "You'll be notified when a spot opens.";
+          msg.className = 'text-center text-xs mt-2 text-slate-400';
+        }
+      } catch (e) {
+        msg.textContent = 'Could not update notifications: ' + e.message;
+        msg.className = 'text-center text-xs mt-2 text-red-400';
+      }
+      updateNotifyUI();
+    }
+    // ────────────────────────────────────────────────────────────────
+
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(() => {});
+      navigator.serviceWorker.register('/sw.js')
+        .then(() => updateNotifyUI())
+        .catch(() => {});
     }
   </script>
 
