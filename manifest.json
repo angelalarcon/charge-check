@@ -1,0 +1,17 @@
+{
+  "name": "EV Charger Status",
+  "short_name": "Charger",
+  "description": "Real-time EV charger status at IMESAPI, Santa Cruz de Tenerife",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "/.netlify/functions/icon",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
