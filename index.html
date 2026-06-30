@@ -269,6 +269,11 @@
         : '';
       document.getElementById('err').classList.add('hidden');
       drawFavicon(favIcons);
+
+      // Push latest status to SW so it can serve a fresh /icon on next request
+      if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ type: 'STATUS_UPDATE', sockets: favIcons });
+      }
     }
 
     async function tryLocal() {
@@ -400,7 +405,10 @@
 
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js')
-        .then(() => updateNotifyUI())
+        .then(reg => {
+          updateNotifyUI();
+          reg.update(); // re-check manifest + icon on every page visit
+        })
         .catch(() => {});
     }
   </script>
