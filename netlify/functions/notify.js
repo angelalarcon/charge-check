@@ -1,5 +1,5 @@
 const webpush = require('web-push');
-const { getStore } = require('@netlify/blobs');
+const { getStore, connectLambda } = require('@netlify/blobs');
 
 const TARGETS       = ['IMESAPI - SELBA EdRSR 12', 'IMESAPI - SELBA EdRSR 16'];
 const NIGHT_STATION = 'IMESAPI - SELBA EdRSR 16';
@@ -43,7 +43,8 @@ async function isNightNow() {
   }
 }
 
-exports.handler = async function () {
+exports.handler = async function (event) {
+  connectLambda(event);
   let current, night;
   try {
     [current, night] = await Promise.all([fetchStatus(), isNightNow()]);
