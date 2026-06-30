@@ -1,4 +1,4 @@
-const CACHE = 'ev-v3';
+const CACHE = 'ev-v4';
 
 // ── Icon generation via OffscreenCanvas ─────────────────────────────
 // Same FA6 paths used on the page, pre-built once at parse time
@@ -68,6 +68,45 @@ async function generateIconBlob(socketInfos) {
 // Latest socket status posted from the page on every refresh
 let latestSockets = null;
 
+const TARGETS_SW      = ['IMESAPI - SELBA EdRSR 12', 'IMESAPI - SELBA EdRSR 16'];
+const NIGHT_STATION_SW = 'IMESAPI - SELBA EdRSR 16';
+
+async function fetchCurrentSockets() {
+  try {
+    const [cr, sr] = await Promise.all([
+      fetch('/.netlify/functions/chargers'),
+      fetch('https://api.sunrise-sunset.org/json?lat=28.4636&lng=-16.2518&formatted=0'),
+    ]);
+    if (!cr.ok) return null;
+    const stations = await cr.json();
+
+    let night = false;
+    try {
+      if (sr.ok) {
+        const { results, status } = await sr.json();
+        if (status === 'OK') {
+          const now = new Date();
+          night = now < new Date(results.sunrise) || now > new Date(results.sunset);
+        }
+      }
+    } catch {}
+
+    const sockets = [];
+    TARGETS_SW.forEach(name => {
+      const st = stations.find(s => s.name === name);
+      if (!st) return;
+      const forceNight = night && name === NIGHT_STATION_SW;
+      st.charger_sockets
+        .sort((a, b) => a.socket_number - b.socket_number)
+        .slice(0, 2)
+        .forEach(sk => sockets.push({ status: sk.status, night: forceNight }));
+    });
+    return sockets.length ? sockets : null;
+  } catch {
+    return null;
+  }
+}
+
 self.addEventListener('message', e => {
   if (e.data && e.data.type === 'STATUS_UPDATE') {
     latestSockets = e.data.sockets;
@@ -92,14 +131,21 @@ self.addEventListener('activate', e => {
 self.addEventListener('push', e => {
   const data = e.data ? e.data.json() : {};
   e.waitUntil(
-    self.registration.showNotification(data.title || 'Charger available', {
-      body: data.body || '',
-      icon: '/icon',
-      badge: '/icon',
-      tag: 'ev-charger',
-      renotify: true,
-      data: { url: data.url || '/' },
-    })
+    Promise.all([
+      self.registration.showNotification(data.title || 'Charger available', {
+        body: data.body || '',
+        icon: '/icon',
+        badge: '/icon',
+        tag: 'ev-charger',
+        renotify: true,
+        data: { url: data.url || '/' },
+      }),
+      data.available != null
+        ? (data.available > 0
+            ? self.registration.setAppBadge(data.available)
+            : self.registration.clearAppBadge())
+        : Promise.resolve(),
+    ])
   );
 });
 
@@ -118,19 +164,17 @@ self.addEventListener('fetch', e => {
 
   // Serve /icon dynamically from OffscreenCanvas
   if (url.pathname === '/icon') {
-    if (latestSockets) {
-      e.respondWith(
-        generateIconBlob(latestSockets).then(blob =>
-          new Response(blob, {
-            status: 200,
-            headers: { 'Content-Type': 'image/png', 'Cache-Control': 'no-store' },
-          })
-        )
-      );
-    } else {
-      // First load — SW hasn't received status yet, fall back to server function
-      e.respondWith(fetch('/.netlify/functions/icon'));
-    }
+    e.respondWith((async () => {
+      const sockets = latestSockets || await fetchCurrentSockets();
+      if (sockets) {
+        const blob = await generateIconBlob(sockets);
+        return new Response(blob, {
+          status: 200,
+          headers: { 'Content-Type': 'image/png', 'Cache-Control': 'no-store' },
+        });
+      }
+      return fetch('/.netlify/functions/icon');
+    })());
     return;
   }
 

@@ -78,10 +78,12 @@ exports.handler = async function (event) {
   const shortNames = newlyAvailable.map(s =>
     `${s.station.replace('IMESAPI - SELBA ', '')} · socket ${s.socket}`
   );
+  const totalAvailable = current.filter(c => c.status === 0 && !(night && c.station === NIGHT_STATION)).length;
   const payload = JSON.stringify({
     title: `${newlyAvailable.length === 1 ? 'Charger' : `${newlyAvailable.length} chargers`} available 🔌`,
     body: shortNames.join('\n'),
     url: 'https://charge-check.netlify.app',
+    available: totalAvailable,
   });
 
   // Send to all subscribers, prune expired ones

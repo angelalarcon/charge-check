@@ -270,6 +270,12 @@
       document.getElementById('err').classList.add('hidden');
       drawFavicon(favIcons);
 
+      // Update app badge with count of available chargers (Android home screen)
+      const availableCount = favIcons.filter(f => !f.night && f.status === 0).length;
+      if ('setAppBadge' in navigator) {
+        availableCount > 0 ? navigator.setAppBadge(availableCount) : navigator.clearAppBadge();
+      }
+
       // Push latest status to SW so it can serve a fresh /icon on next request
       if (navigator.serviceWorker && navigator.serviceWorker.controller) {
         navigator.serviceWorker.controller.postMessage({ type: 'STATUS_UPDATE', sockets: favIcons });
