@@ -88,7 +88,7 @@ ${cells}
     statusCode: 200,
     headers: {
       'Content-Type': 'image/svg+xml',
-      'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
+      'Cache-Control': 'no-store',
     },
     body: svg,
   };

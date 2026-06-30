@@ -181,6 +181,8 @@ self.addEventListener('fetch', e => {
   // Pass through external resources and Netlify function calls
   if (url.hostname !== self.location.hostname) return;
   if (url.pathname.startsWith('/.netlify/')) return;
+  // Never cache the manifest so Android Chrome always reads the latest
+  if (url.pathname === '/manifest.json') return;
 
   e.respondWith(
     fetch(e.request)
