@@ -726,7 +726,7 @@
       const pill = 'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5';
       // The favorite toggle lives in the button row, away from Leaflet's close (×) in the corner
       return `
-        <div class="min-w-[230px] max-w-[280px]">
+        <div>
           <div class="pr-5">
             <p class="text-lg font-bold leading-tight ${priceClass(s)}">${esc(priceLabel(s))}</p>
             <p class="text-xs text-slate-300 mt-1 break-words">${esc(shortAddress(s))}</p>
@@ -742,6 +742,10 @@
           </div>
         </div>`;
     }
+
+    // Leaflet measures the popup when it opens, before Tailwind (CDN) has styled
+    // the new markup, so the width is given here rather than via classes
+    const POPUP_OPTIONS = { minWidth: 240, maxWidth: 280 };
 
     // Favorites are stars, everything else a dot; both take the pin colour
     const PIN_ORDER = { free: 3, paid: 3, unpriced: 3, busy: 2, unavailable: 0, night: 0 };
@@ -790,7 +794,7 @@
           if (m.isPopupOpen() && html !== m.popupHtml) m.setPopupContent(() => (m.popupHtml = popupHtml(nearbyByKey.get(s.key))));
         } else {
           m = L.marker([s.lat, s.lon], { icon: pinIcon(s, night), zIndexOffset })
-            .bindPopup(() => (m.popupHtml = popupHtml(nearbyByKey.get(s.key))));
+            .bindPopup(() => (m.popupHtml = popupHtml(nearbyByKey.get(s.key))), POPUP_OPTIONS);
           m.addTo(stationLayer);
           markersByKey.set(s.key, m);
         }
