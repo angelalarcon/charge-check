@@ -1,7 +1,7 @@
 {
-  "name": "EV Charger Status",
-  "short_name": "Charger",
-  "description": "Real-time EV charger status: your favorite stations and available chargers near you",
+  "name": "Estado de cargadores",
+  "short_name": "Cargador",
+  "description": "Estado en tiempo real de tus cargadores favoritos y de los cargadores disponibles cerca de ti",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f172a",
@@ -13,5 +13,6 @@
       "type": "image/svg+xml",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "lang": "es"
 }

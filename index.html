@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EV Charger Status</title>
+  <title>Estado de cargadores</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
@@ -16,7 +16,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Charger">
+  <meta name="apple-mobile-web-app-title" content="Cargador">
   <link rel="apple-touch-icon" href="/.netlify/functions/icon">
   <link rel="icon" id="favicon" type="image/png">
   <style>
@@ -74,10 +74,10 @@
         <div class="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center">
           <i class="fas fa-charging-station text-lg"></i>
         </div>
-        <h1 class="text-2xl font-bold tracking-tight">EV Charger Status</h1>
+        <h1 class="text-2xl font-bold tracking-tight">Estado de cargadores</h1>
       </div>
       <p class="text-slate-400 text-sm mt-1">Santa Cruz de Tenerife</p>
-      <p id="ts" class="text-slate-600 text-xs mt-1">Loading…</p>
+      <p id="ts" class="text-slate-600 text-xs mt-1">Cargando…</p>
       <p id="sun" class="text-slate-700 text-xs mt-0.5"></p>
     </div>
 
@@ -85,10 +85,10 @@
     <div class="flex justify-center mb-6">
       <div class="inline-flex bg-slate-800/70 border border-slate-700/40 rounded-full p-1 text-sm font-medium">
         <button data-tab="favorites" onclick="showTab('favorites')" class="tab-btn px-5 py-1.5 rounded-full transition-all">
-          <i class="fas fa-star mr-1.5"></i>Favorites
+          <i class="fas fa-star mr-1.5"></i>Favoritos
         </button>
         <button data-tab="map" onclick="showTab('map')" class="tab-btn px-5 py-1.5 rounded-full transition-all">
-          <i class="fas fa-map-location-dot mr-1.5"></i>Map
+          <i class="fas fa-map-location-dot mr-1.5"></i>Mapa
         </button>
       </div>
     </div>
@@ -102,7 +102,7 @@
       </div>
       <div id="err-favorites" class="hidden mt-6 bg-red-950/60 border border-red-800 rounded-xl px-4 py-3 text-sm text-red-300 text-center">
         <i class="fas fa-triangle-exclamation mr-2"></i><span class="err-msg"></span>
-        <p class="text-xs text-red-500 mt-1">The upstream API may be temporarily unavailable. Try again in a moment.</p>
+        <p class="text-xs text-red-500 mt-1">Puede que el servicio de datos no esté disponible temporalmente. Inténtalo de nuevo en un momento.</p>
       </div>
     </section>
 
@@ -110,7 +110,7 @@
     <section id="tab-map" class="hidden">
       <p id="loc-msg" class="mb-3 text-xs text-slate-400"></p>
       <div class="relative">
-        <div id="map" class="h-80 rounded-2xl overflow-hidden border border-slate-700/40"></div>
+        <div id="map" class="h-[30rem] rounded-2xl overflow-hidden border border-slate-700/40"></div>
         <div id="map-loading"
           class="hidden absolute inset-0 z-[1000] pointer-events-none rounded-2xl bg-slate-900/60 backdrop-blur-[1px] flex flex-col items-center justify-center gap-3">
           <div class="battery"><div class="battery-level"></div><i class="fas fa-bolt battery-bolt"></i></div>
@@ -119,12 +119,12 @@
       </div>
       <div id="err-map" class="hidden mt-6 bg-red-950/60 border border-red-800 rounded-xl px-4 py-3 text-sm text-red-300 text-center">
         <i class="fas fa-triangle-exclamation mr-2"></i><span class="err-msg"></span>
-        <p class="text-xs text-red-500 mt-1">The upstream API may be temporarily unavailable. Try again in a moment.</p>
+        <p class="text-xs text-red-500 mt-1">Puede que el servicio de datos no esté disponible temporalmente. Inténtalo de nuevo en un momento.</p>
       </div>
       <h3 id="nearby-title" class="mt-6 mb-3 text-sm font-semibold text-slate-300"></h3>
       <div id="nearby-list" class="grid grid-cols-1 gap-2"></div>
       <p class="text-center text-slate-700 text-xs mt-4">
-        Data: <a href="https://etecnic.es/mapa-de-recarga/" target="_blank" rel="noopener" class="underline">etecnic</a> ·
+        Datos: <a href="https://etecnic.es/mapa-de-recarga/" target="_blank" rel="noopener" class="underline">etecnic</a> ·
         <a href="https://map.electromaps.com/es/" target="_blank" rel="noopener" class="underline">Electromaps</a>
       </p>
     </section>
@@ -133,7 +133,7 @@
     <div class="flex items-center justify-center gap-3 mt-8">
       <button id="btn" onclick="refresh()"
         class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 active:scale-95 transition-all px-6 py-2 rounded-full text-sm font-medium shadow-lg disabled:opacity-40">
-        <i id="ico" class="fas fa-sync-alt"></i>Refresh
+        <i id="ico" class="fas fa-sync-alt"></i>Actualizar
       </button>
     </div>
 
@@ -142,67 +142,67 @@
       <span class="fav-only flex items-center gap-2">
         <span class="w-7 h-7 rounded-full bg-green-500 flex items-center justify-center shrink-0">
           <i class="fas fa-plug text-white text-[11px]"></i>
-        </span>Available
+        </span>Disponible
       </span>
       <span class="map-only hidden flex items-center gap-2">
         <span class="w-7 h-7 rounded-full bg-yellow-400 flex items-center justify-center shrink-0">
           <i class="fas fa-plug text-slate-900 text-[11px]"></i>
-        </span>Free
+        </span>Gratis
       </span>
       <span class="map-only hidden flex items-center gap-2">
         <span class="w-7 h-7 rounded-full bg-green-500 flex items-center justify-center shrink-0">
           <i class="fas fa-euro-sign text-white text-[11px]"></i>
-        </span>Paid
+        </span>De pago
       </span>
       <span class="map-only hidden flex items-center gap-2">
         <span class="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center shrink-0">
           <i class="fas fa-plug text-slate-900 text-[11px]"></i>
-        </span>Price unknown
+        </span>Precio desconocido
       </span>
       <span class="flex items-center gap-2">
         <span class="w-7 h-7 rounded-full bg-blue-500 flex items-center justify-center shrink-0">
           <i class="fas fa-bolt text-white text-[11px]"></i>
-        </span>Busy
+        </span>Ocupado
       </span>
       <span class="fav-only flex items-center gap-2">
         <span class="w-7 h-7 rounded-full bg-gray-950 border border-gray-600 flex items-center justify-center shrink-0">
           <i class="fas fa-ban text-white text-[11px]"></i>
-        </span>Unavailable
+        </span>No disponible
       </span>
       <span class="map-only hidden flex items-center gap-2">
         <span class="w-7 h-7 rounded-full bg-slate-500 flex items-center justify-center shrink-0">
           <i class="fas fa-ban text-white text-[11px]"></i>
-        </span>Out of service
+        </span>Fuera de servicio
       </span>
       <span class="fav-only flex items-center gap-2">
         <span class="w-7 h-7 rounded-full bg-slate-600 flex items-center justify-center shrink-0">
           <i class="fas fa-question text-white text-[11px]"></i>
-        </span>Unknown
+        </span>Desconocido
       </span>
       <span class="flex items-center gap-2">
         <span class="w-7 h-7 rounded-full bg-slate-950 border border-slate-600 flex items-center justify-center shrink-0">
           <i class="fas fa-moon text-slate-400 text-[11px]"></i>
-        </span>Night closure
+        </span>Cierre nocturno
       </span>
       <span class="map-only hidden flex items-center gap-2">
         <span class="w-7 h-7 flex items-center justify-center shrink-0">
           <i class="fas fa-star text-yellow-400 text-xl"></i>
-        </span>Favorite
+        </span>Favorito
       </span>
     </div>
 
     <p class="text-center text-slate-700 text-xs mt-5">
-      <i class="fas fa-clock mr-1"></i><span id="refresh-note">Auto-refreshes every 30 s</span>
+      <i class="fas fa-clock mr-1"></i><span id="refresh-note">Se actualiza cada 30 s</span>
     </p>
   </div>
 
   <script>
     const STATUS = {
-      available:   { label: 'Available',     bg: 'bg-green-500', glow: 'glow-green', icon: 'fa-plug',     color: '#22c55e' },
-      busy:        { label: 'Busy',          bg: 'bg-blue-500',  glow: 'glow-blue',  icon: 'fa-bolt',     color: '#3b82f6' },
-      unavailable: { label: 'Unavailable',   bg: 'bg-gray-950',  glow: '',           icon: 'fa-ban',      color: '#1c1917' },
-      unknown:     { label: 'Unknown',       bg: 'bg-slate-600', glow: '',           icon: 'fa-question', color: '#64748b' },
-      night:       { label: 'Night closure', bg: 'bg-slate-950', glow: '',           icon: 'fa-moon',     color: '#0f172a' },
+      available:   { label: 'Disponible',    bg: 'bg-green-500', glow: 'glow-green', icon: 'fa-plug',     color: '#22c55e' },
+      busy:        { label: 'Ocupado',       bg: 'bg-blue-500',  glow: 'glow-blue',  icon: 'fa-bolt',     color: '#3b82f6' },
+      unavailable: { label: 'No disponible', bg: 'bg-gray-950',  glow: '',           icon: 'fa-ban',      color: '#1c1917' },
+      unknown:     { label: 'Desconocido',   bg: 'bg-slate-600', glow: '',           icon: 'fa-question', color: '#64748b' },
+      night:       { label: 'Cierre nocturno', bg: 'bg-slate-950', glow: '',           icon: 'fa-moon',     color: '#0f172a' },
     };
 
     // Iglesia closes at night even though the API keeps reporting it
@@ -262,7 +262,7 @@
     }
 
     function fmt(d) {
-      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
     }
 
     function esc(s) {
@@ -287,24 +287,23 @@
       if (st === 'night') return cfg(st).label;
       if (st === 'unknown') {
         const down = s.sockets?.filter(sk => sk.status === 'unavailable').length || 0;
-        return down ? `${down}/${s.sockets.length} out of service · rest no live status` : 'No live status';
+        return down ? `${down}/${s.sockets.length} fuera de servicio` : '';
       }
       if (!s.sockets?.length) return cfg(st).label;
       const free = s.sockets.filter(sk => sk.status === 'available').length;
-      return `${free}/${s.sockets.length} available`;
+      return `${free}/${s.sockets.length} disponibles`;
     }
 
     // Map pins: grey only when out of service, blue when busy; anything else
     // (available, or no live status) is coloured by price. Paid pins carry a €.
     const PIN = {
-      free:        { color: '#facc15', fg: '#0f172a', label: 'Free' },
-      paid:        { color: '#22c55e', fg: '#ffffff', label: 'Paid' },
-      unpriced:    { color: '#e2e8f0', fg: '#0f172a', label: 'Price unknown' },
-      busy:        { color: '#3b82f6', fg: '#ffffff', label: 'Busy' },
-      unavailable: { color: '#64748b', fg: '#ffffff', label: 'Out of service' },
-      night:       { color: '#0f172a', fg: '#94a3b8', label: 'Night closure' },
+      free:        { color: '#facc15', fg: '#0f172a' },
+      paid:        { color: '#22c55e', fg: '#ffffff' },
+      unpriced:    { color: '#e2e8f0', fg: '#0f172a' },
+      busy:        { color: '#3b82f6', fg: '#ffffff' },
+      unavailable: { color: '#64748b', fg: '#ffffff' },
+      night:       { color: '#0f172a', fg: '#94a3b8' },
     };
-    const PRICE_LABELS = { free: 'Free', paid: 'Paid' };
 
     function pinState(s, night) {
       const st = effective(s, s.status, night);
@@ -320,9 +319,34 @@
       return PIN[pinState(s, night)].color;
     }
 
+    // The price is the headline of a charger in the list and popups
     function priceLabel(s) {
-      if (s.price === 'paid' && s.priceText) return `Paid · ${s.priceText}`;
-      return PRICE_LABELS[s.price] || '';
+      if (s.price === 'free') return 'Gratis';
+      if (s.price === 'paid') return s.priceText ? s.priceText.replace(/kwh/i, 'kWh') : 'De pago';
+      return 'Precio desconocido';
+    }
+
+    function priceClass(s) {
+      return s.price === 'free' ? 'text-yellow-400' : s.price === 'paid' ? 'text-green-400' : 'text-slate-300';
+    }
+
+    // "Av. Francisco la Roche, 49A, 38001 Santa Cruz de Tenerife, España" → "Av. Francisco la Roche, 49A"
+    function shortAddress(s) {
+      const parts = (s.address || '').split(',').map(p => p.trim()).filter(Boolean);
+      const cut = parts.findIndex(p => /^\d{5}\b/.test(p));
+      return parts.slice(0, Math.min(cut > 0 ? cut : 2, 2)).join(', ') || s.name;
+    }
+
+    function details(s, night, { distance = false } = {}) {
+      return [
+        freeSummary(s, night),
+        s.power ? `${s.power} kW` : '',
+        distance && userPos ? fmtKm(s.distance) : '',
+      ].filter(Boolean).join(' · ');
+    }
+
+    function errorText(e) {
+      return e instanceof TypeError ? 'No se pudo conectar con el servidor' : e.message;
     }
 
     function setError(tab, msg) {
@@ -358,7 +382,7 @@
       const favs = getFavorites();
       const existing = favs.find(f => f.key === key);
       if (existing) {
-        if (!confirm(`Remove "${existing.name}" from favorites?`)) return;
+        if (!confirm(`¿Quitar "${existing.name}" de favoritos?`)) return;
         saveFavorites(favs.filter(f => f.key !== key));
       } else {
         const s = nearbyByKey.get(key);
@@ -377,7 +401,7 @@
       return `
         <button onclick="event.stopPropagation(); toggleFavorite('${esc(key)}')"
           class="shrink-0 w-8 h-8 rounded-full flex items-center justify-center hover:bg-slate-700/60 transition-all active:scale-90"
-          title="${fav ? 'Remove from favorites' : 'Add to favorites'}">
+          title="${fav ? 'Quitar de favoritos' : 'Añadir a favoritos'}">
           <i class="${fav ? 'fas text-yellow-400' : 'far text-slate-500'} fa-star ${size}"></i>
         </button>`;
     }
@@ -462,7 +486,7 @@
           <div class="bg-slate-800/70 border border-slate-700/40 rounded-2xl p-5 flex items-start justify-between gap-3">
             <div class="min-w-0 flex-1">
               <h2 class="text-base font-bold text-white break-words">${esc(fav.name)}</h2>
-              <p class="text-xs text-slate-500 mt-0.5">Status unavailable right now</p>
+              <p class="text-xs text-slate-500 mt-0.5">Estado no disponible ahora mismo</p>
             </div>
             ${starButton(fav.key)}
           </div>`;
@@ -481,7 +505,7 @@
             <div class="w-16 h-16 rounded-full ${c.bg} border border-slate-700/30 ${c.glow} flex items-center justify-center shadow-lg">
               <i class="fas ${c.icon} ${iconColor} text-2xl"></i>
             </div>
-            <p class="text-[10px] font-semibold uppercase tracking-widest text-slate-500 text-center">Socket ${sk.n}${sk.kw ? ` · ${sk.kw} kW` : ''}</p>
+            <p class="text-[10px] font-semibold uppercase tracking-widest text-slate-500 text-center">Conector ${sk.n}${sk.kw ? ` · ${sk.kw} kW` : ''}</p>
           </div>`;
       }).join('');
 
@@ -493,14 +517,14 @@
               <p class="text-xs text-slate-400 mt-0.5">${esc(station.address)}</p>
             </div>
             <div class="flex items-center shrink-0">
-              <a href="${directionsUrl(station)}" target="_blank" rel="noopener" title="Directions"
+              <a href="${directionsUrl(station)}" target="_blank" rel="noopener" title="Cómo llegar"
                 class="w-8 h-8 rounded-full flex items-center justify-center text-slate-500 hover:text-white hover:bg-slate-700/60 transition-all">
                 <i class="fas fa-diamond-turn-right"></i>
               </a>
               ${starButton(fav.key)}
             </div>
           </div>
-          <div class="flex flex-wrap gap-4 justify-around">${socketHtml || '<p class="text-xs text-slate-500">No connector data</p>'}</div>
+          <div class="flex flex-wrap gap-4 justify-around">${socketHtml || '<p class="text-xs text-slate-500">Sin datos de conectores</p>'}</div>
         </div>`;
     }
 
@@ -512,10 +536,10 @@
         ? pairs.map(p => stationCard(p.fav, p.station, night)).join('')
         : `<div class="bg-slate-800/50 border border-slate-700/40 rounded-2xl p-8 text-center text-sm text-slate-400">
              <i class="far fa-star text-2xl mb-3 block text-slate-500"></i>
-             No favorites yet — add some from the <button onclick="showTab('map')" class="underline">Map</button> tab.
+             Aún no tienes favoritos — añádelos desde la pestaña <button onclick="showTab('map')" class="underline">Mapa</button>.
            </div>`;
       document.getElementById('sun').textContent = sun
-        ? `☀️ Sunrise ${fmt(sun.sunrise)} · 🌙 Sunset ${fmt(sun.sunset)}`
+        ? `☀️ Amanecer ${fmt(sun.sunrise)} · 🌙 Atardecer ${fmt(sun.sunset)}`
         : '';
       setError('favorites', null);
 
@@ -543,7 +567,7 @@
           favs.length
             ? fetch(`${CHARGERS_URL}?ids=${encodeURIComponent(favs.map(f => f.key).join(','))}`,
                     { signal: AbortSignal.timeout(15000) })
-                .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+                .then(r => { if (!r.ok) throw new Error(`Error del servidor (${r.status})`); return r.json(); })
             : [],
           getSunTimes().catch(() => null),
         ]);
@@ -551,7 +575,7 @@
         renderFavorites(favs, stations, sun, night);
         markUpdated('favorites');
       } catch (e) {
-        setError('favorites', e.message);
+        setError('favorites', errorText(e));
         document.getElementById('grid').innerHTML = '';
         markUpdated('favorites', true);
       }
@@ -570,7 +594,9 @@
 
     function ensureMap() {
       if (map) return;
-      map = L.map('map');
+      map = L.map('map', { zoomControl: false });
+      L.control.zoom({ zoomInTitle: 'Acercar', zoomOutTitle: 'Alejar' }).addTo(map);
+      map.attributionControl.setPrefix(false);
       fetch(MAP_STYLE_URL)
         .then(r => r.json())
         .then(style => {
@@ -579,10 +605,13 @@
             .map(l => MAP_PAINT[l.id] ? { ...l, paint: { ...l.paint, ...MAP_PAINT[l.id] } } : l);
           L.maplibreGL({
             style,
-            attribution: '<a href="https://openfreemap.org">OpenFreeMap</a> &copy; <a href="https://www.openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+            // Replaces the tiles' English credit line
+            attributionControl: {
+              customAttribution: '<a href="https://openfreemap.org" target="_blank">OpenFreeMap</a> &copy; <a href="https://www.openmaptiles.org/" target="_blank">OpenMapTiles</a> · Datos de <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>',
+            },
           }).addTo(map);
         })
-        .catch(() => setError('map', 'Could not load the base map'));
+        .catch(() => setError('map', 'No se pudo cargar el mapa base'));
       userLayer    = L.layerGroup().addTo(map);
       stationLayer = L.layerGroup().addTo(map);
 
@@ -593,7 +622,7 @@
           const bar = L.DomUtil.create('div', 'leaflet-bar');
           const a = L.DomUtil.create('a', '', bar);
           a.href = '#';
-          a.title = 'My location';
+          a.title = 'Mi ubicación';
           a.setAttribute('role', 'button');
           a.innerHTML = '<i class="fas fa-location-crosshairs"></i>';
           L.DomEvent.disableClickPropagation(bar);
@@ -615,10 +644,10 @@
 
     function locate() {
       return new Promise(resolve => {
-        if (!('geolocation' in navigator)) return resolve({ error: 'Geolocation not supported' });
+        if (!('geolocation' in navigator)) return resolve({ error: 'Tu navegador no permite la ubicación' });
         navigator.geolocation.getCurrentPosition(
           p => resolve({ pos: { lat: p.coords.latitude, lon: p.coords.longitude } }),
-          e => resolve({ error: e.code === e.PERMISSION_DENIED ? 'Location permission denied' : 'Could not get your location' }),
+          e => resolve({ error: e.code === e.PERMISSION_DENIED ? 'Permiso de ubicación denegado' : 'No se pudo obtener tu ubicación' }),
           { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
         );
       });
@@ -644,18 +673,18 @@
     async function locateAndCenter() {
       ensureMap();
       const locMsg = document.getElementById('loc-msg');
-      if (!userPos) locMsg.innerHTML = '<i class="fas fa-location-crosshairs mr-1"></i>Requesting your location…';
+      if (!userPos) locMsg.innerHTML = '<i class="fas fa-location-crosshairs mr-1"></i>Buscando tu ubicación…';
       const { pos, error } = await locate();
       if (pos) userPos = pos;
       locMsg.innerHTML = userPos
-        ? '<i class="fas fa-location-dot mr-1 text-blue-400"></i>Chargers near you'
-        : `<i class="fas fa-location-crosshairs mr-1 text-amber-400"></i>${esc(error)} — showing Santa Cruz de Tenerife`;
+        ? '<i class="fas fa-location-dot mr-1 text-blue-400"></i>Cargadores cerca de ti'
+        : `<i class="fas fa-location-crosshairs mr-1 text-amber-400"></i>${esc(error)} — mostrando Santa Cruz de Tenerife`;
 
       userLayer.clearLayers();
       if (userPos) {
         L.circleMarker([userPos.lat, userPos.lon], {
           radius: 7, color: '#ffffff', weight: 2, fillColor: '#3b82f6', fillOpacity: 1,
-        }).bindTooltip('You are here').addTo(userLayer);
+        }).bindTooltip('Estás aquí').addTo(userLayer);
       }
       const c = userPos || FALLBACK_POS;
       map.setView([c.lat, c.lon], Math.max(map.getZoom(), MIN_LOAD_ZOOM + 3));
@@ -672,22 +701,17 @@
         <div class="min-w-[200px] max-w-[260px]">
           <div class="flex items-start justify-between gap-2">
             <div class="min-w-0">
-              <p class="font-semibold text-sm leading-snug break-words">${esc(s.name)}</p>
-              ${s.address ? `<p class="text-xs text-slate-400 mt-0.5">${esc(s.address)}</p>` : ''}
+              <p class="text-lg font-bold leading-tight ${priceClass(s)}">${esc(priceLabel(s))}</p>
+              <p class="text-xs text-slate-300 mt-1 break-words">${esc(shortAddress(s))}</p>
             </div>
             ${starButton(favKey(s), 'text-sm')}
           </div>
-          ${s.count > 1 ? `<p class="text-[11px] text-slate-400 mt-1"><i class="fas fa-layer-group mr-1"></i>${s.count} chargers at this spot</p>` : ''}
-          <p class="text-xs mt-2">
-            <span class="inline-block w-2 h-2 rounded-full mr-1" style="background:${pinColor(s, night)}"></span>${esc(freeSummary(s, night))}
-            ${s.power ? ` · ${s.power} kW` : ''}${userPos ? ` · ${fmtKm(s.distance)}` : ''}
-          </p>
-          ${priceLabel(s) ? `<p class="text-xs mt-1 ${s.price === 'free' ? 'text-yellow-400' : 'text-slate-300'}">
-            <i class="fas ${s.price === 'free' ? 'fa-gift' : 'fa-euro-sign'} mr-1"></i>${esc(priceLabel(s))}</p>` : ''}
-          <p class="text-[11px] text-slate-500 mt-1">${SOURCE_NAMES[s.source]}</p>
+          ${details(s, night, { distance: true }) ? `<p class="text-xs text-slate-400 mt-2">
+            <span class="inline-block w-2 h-2 rounded-full mr-1" style="background:${pinColor(s, night)}"></span>${esc(details(s, night, { distance: true }))}</p>` : ''}
+          ${s.count > 1 ? `<p class="text-[11px] text-slate-400 mt-1"><i class="fas fa-layer-group mr-1"></i>${s.count} cargadores en este punto</p>` : ''}
           <div class="flex gap-2 mt-3 text-xs">
             <a href="${directionsUrl(s)}" target="_blank" rel="noopener"
-              class="bg-blue-600 hover:bg-blue-500 rounded-full px-3 py-1"><i class="fas fa-diamond-turn-right mr-1"></i>Directions</a>
+              class="bg-blue-600 hover:bg-blue-500 rounded-full px-3 py-1"><i class="fas fa-diamond-turn-right mr-1"></i>Cómo llegar</a>
             ${s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener" class="bg-slate-700 hover:bg-slate-600 rounded-full px-3 py-1">Electromaps</a>` : ''}
           </div>
         </div>`;
@@ -752,10 +776,10 @@
       const available = stations.filter(s => isOpen(s, night)).slice(0, 25);
 
       document.getElementById('nearby-title').textContent = zoomedOut
-        ? 'Zoom in to see chargers'
+        ? 'Acércate para ver cargadores'
         : available.length
-          ? `Available in this area (${available.length})`
-          : 'No available chargers in this area';
+          ? `Disponibles en esta zona (${available.length})`
+          : 'No hay cargadores disponibles en esta zona';
 
       document.getElementById('nearby-list').innerHTML = available.map(s => `
         <div onclick="focusStation('${esc(s.key)}')"
@@ -764,13 +788,13 @@
             <i class="fas ${isFavorite(favKey(s)) ? 'fa-star' : s.price === 'paid' ? 'fa-euro-sign' : 'fa-plug'} text-xs" style="color:${PIN[pinState(s, night)].fg}"></i>
           </span>
           <div class="min-w-0 flex-1">
-            <p class="text-sm font-semibold truncate">${esc(s.name)}</p>
-            <p class="text-xs text-slate-400 truncate">
-              ${esc(freeSummary(s, night))}${s.power ? ` · ${s.power} kW` : ''}${priceLabel(s) ? ` · ${esc(priceLabel(s))}` : ''} · ${SOURCE_NAMES[s.source]}
+            <p class="text-lg font-bold leading-tight truncate ${priceClass(s)}">${esc(priceLabel(s))}</p>
+            <p class="text-xs text-slate-400 truncate mt-0.5">
+              ${esc([shortAddress(s), details(s, night)].filter(Boolean).join(' · '))}
             </p>
           </div>
           ${userPos ? `<span class="text-xs text-slate-300 shrink-0">${fmtKm(s.distance)}</span>` : ''}
-          <a href="${directionsUrl(s)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Directions"
+          <a href="${directionsUrl(s)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Cómo llegar"
             class="shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-slate-500 hover:text-white hover:bg-slate-700/60 transition-all">
             <i class="fas fa-diamond-turn-right"></i>
           </a>
@@ -813,7 +837,7 @@
           fetch(`${NEARBY_URL}?${params}`, { signal: AbortSignal.timeout(20000) }),
           isNightNow(),
         ]);
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        if (!r.ok) throw new Error(`Error del servidor (${r.status})`);
         const { stations, sources } = await r.json();
         if (seq !== nearbySeq) return;   // the map moved again meanwhile
 
@@ -824,11 +848,11 @@
         renderNearbyList();
 
         const failed = Object.entries(sources).filter(([, v]) => v !== 'ok').map(([k]) => SOURCE_NAMES[k]);
-        setError('map', failed.length ? `${failed.join(', ')} could not be reached` : null);
+        setError('map', failed.length ? `No se pudo conectar con ${failed.join(' ni ')}` : null);
         markUpdated('map');
       } catch (e) {
         if (seq !== nearbySeq) return;
-        setError('map', e.message);
+        setError('map', errorText(e));
         markUpdated('map', true);
       }
     }
@@ -838,7 +862,7 @@
     const updated = {};
 
     function markUpdated(tab, failed = false) {
-      updated[tab] = (failed ? 'Failed — ' : 'Last updated: ') + new Date().toLocaleTimeString();
+      updated[tab] = (failed ? 'Error — ' : 'Actualizado: ') + new Date().toLocaleTimeString('es-ES');
       if (tab === activeTab) document.getElementById('ts').textContent = updated[tab];
     }
 
@@ -855,9 +879,9 @@
       document.getElementById('tab-map').classList.toggle('hidden', tab !== 'map');
       document.querySelectorAll('.map-only').forEach(el => el.classList.toggle('hidden', tab !== 'map'));
       document.querySelectorAll('.fav-only').forEach(el => el.classList.toggle('hidden', tab === 'map'));
-      document.getElementById('ts').textContent = updated[tab] || 'Loading…';
+      document.getElementById('ts').textContent = updated[tab] || 'Cargando…';
       document.getElementById('refresh-note').textContent =
-        `Auto-refreshes every ${tab === 'map' ? 60 : 30} s`;
+        `Se actualiza cada ${tab === 'map' ? 60 : 30} s`;
 
       if (tab === 'map') {
         ensureMap();
