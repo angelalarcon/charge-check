@@ -1,4 +1,4 @@
-const CACHE = 'ev-v4';
+const CACHE = 'ev-v5';
 
 // ── Icon generation via OffscreenCanvas ─────────────────────────────
 // Same FA6 paths used on the page, pre-built once at parse time
@@ -12,11 +12,12 @@ const PATHS = Object.fromEntries(
   Object.entries(ICON_SPECS).map(([k, v]) => [k, new Path2D(v.d)])
 );
 
-function iconForStatus(status, night) {
-  if (night)                        return { bg: '#0f172a', name: 'moon', vw: 384, vh: 512, fg: '#94a3b8' };
-  if (status === 0)                 return { bg: '#22c55e', name: 'plug', vw: 384, vh: 512, fg: '#ffffff' };
-  if (status === 1 || status === 2) return { bg: '#3b82f6', name: 'bolt', vw: 448, vh: 512, fg: '#ffffff' };
-  return                                   { bg: '#1c1917', name: 'ban',  vw: 512, vh: 512, fg: '#ffffff' };
+function iconForStatus(status) {
+  if (status === 'night')     return { bg: '#0f172a', name: 'moon', vw: 384, vh: 512, fg: '#94a3b8' };
+  if (status === 'available') return { bg: '#22c55e', name: 'plug', vw: 384, vh: 512, fg: '#ffffff' };
+  if (status === 'busy')      return { bg: '#3b82f6', name: 'bolt', vw: 448, vh: 512, fg: '#ffffff' };
+  if (status === 'unknown')   return { bg: '#475569', name: 'ban',  vw: 512, vh: 512, fg: '#ffffff' };
+  return                             { bg: '#1c1917', name: 'ban',  vw: 512, vh: 512, fg: '#ffffff' };
 }
 
 function rrect(ctx, x, y, w, h, r) {
@@ -41,10 +42,10 @@ async function generateIconBlob(socketInfos) {
   rrect(ctx, 0, 0, S, S, 80);
   ctx.fill();
 
-  socketInfos.forEach(({ status, night }, i) => {
+  socketInfos.forEach(({ status }, i) => {
     const x = GAP + (i % 2) * (CELL + GAP);
     const y = GAP + Math.floor(i / 2) * (CELL + GAP);
-    const { bg, name, vw, vh, fg } = iconForStatus(status, night);
+    const { bg, name, vw, vh, fg } = iconForStatus(status);
 
     ctx.fillStyle = bg;
     rrect(ctx, x, y, CELL, CELL, CR);
@@ -68,9 +69,9 @@ async function generateIconBlob(socketInfos) {
 // Latest socket status posted from the page on every refresh
 let latestSockets = null;
 
-const TARGETS_SW      = ['IMESAPI - SELBA EdRSR 12', 'IMESAPI - SELBA EdRSR 16'];
-const NIGHT_STATION_SW = 'IMESAPI - SELBA EdRSR 16';
+const NIGHT_STATION_SW = 'etecnic:30514';
 
+// Fallback when the page hasn't posted a status yet: default favourites
 async function fetchCurrentSockets() {
   try {
     const [cr, sr] = await Promise.all([
@@ -91,16 +92,12 @@ async function fetchCurrentSockets() {
       }
     } catch {}
 
-    const sockets = [];
-    TARGETS_SW.forEach(name => {
-      const st = stations.find(s => s.name === name);
-      if (!st) return;
-      const forceNight = night && name === NIGHT_STATION_SW;
-      st.charger_sockets
-        .sort((a, b) => a.socket_number - b.socket_number)
-        .slice(0, 2)
-        .forEach(sk => sockets.push({ status: sk.status, night: forceNight }));
-    });
+    const sockets = stations
+      .filter(st => !st.error)
+      .flatMap(st => st.sockets.map(sk => ({
+        status: night && st.key === NIGHT_STATION_SW ? 'night' : sk.status,
+      })))
+      .slice(0, 4);
     return sockets.length ? sockets : null;
   } catch {
     return null;
@@ -126,37 +123,6 @@ self.addEventListener('activate', e => {
     )
   );
   self.clients.claim();
-});
-
-self.addEventListener('push', e => {
-  const data = e.data ? e.data.json() : {};
-  e.waitUntil(
-    Promise.all([
-      self.registration.showNotification(data.title || 'Charger available', {
-        body: data.body || '',
-        icon: '/icon',
-        badge: '/icon',
-        tag: 'ev-charger',
-        renotify: true,
-        data: { url: data.url || '/' },
-      }),
-      data.available != null
-        ? (data.available > 0
-            ? self.registration.setAppBadge(data.available)
-            : self.registration.clearAppBadge())
-        : Promise.resolve(),
-    ])
-  );
-});
-
-self.addEventListener('notificationclick', e => {
-  e.notification.close();
-  e.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
-      const open = list.find(c => 'focus' in c);
-      return open ? open.focus() : clients.openWindow('/');
-    })
-  );
 });
 
 self.addEventListener('fetch', e => {

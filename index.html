@@ -3,9 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EV Charger Status — IMESAPI</title>
+  <title>EV Charger Status</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" integrity="sha256-qx5w1Z7EBGW65+cDDaLzzPKBM/1QLmK9WY7vut/XpzI=" crossorigin="" />
+  <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js" integrity="sha256-RamwepGJzlYFTGIKlHzPQeKR5YyV6bYVM7dAqqZe5cs=" crossorigin=""></script>
+  <script src="https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.1.4/leaflet-maplibre-gl.js" integrity="sha256-Hmz4yz61/ZCYeaob82o4P7UGyaWy27+rq85lopTdH8s=" crossorigin=""></script>
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#0f172a">
   <meta name="mobile-web-app-capable" content="yes">
@@ -25,6 +30,38 @@
     }
     .glow-green { animation: pulse-green 2s infinite; }
     .glow-blue  { animation: pulse-blue  1.6s infinite; }
+
+    /* Charging battery shown over the map while loading */
+    .battery {
+      position: relative; width: 64px; height: 30px;
+      border: 3px solid #e2e8f0; border-radius: 7px; padding: 3px;
+    }
+    .battery::after {
+      content: ''; position: absolute; right: -8px; top: 7px;
+      width: 5px; height: 10px; background: #e2e8f0; border-radius: 0 3px 3px 0;
+    }
+    .battery-level {
+      height: 100%; border-radius: 3px; background: #22c55e;
+      animation: battery-charge 1.6s ease-in-out infinite;
+    }
+    .battery-bolt {
+      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      color: #facc15; font-size: 14px; text-shadow: 0 0 3px #0f172a;
+    }
+    @keyframes battery-charge {
+      0%   { width: 0;    background: #facc15; }
+      80%  { width: 100%; background: #22c55e; }
+      100% { width: 100%; background: #22c55e; }
+    }
+
+    /* Dark Leaflet popups */
+    .leaflet-container { background: #0f172a; font: inherit; }
+    .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #1e293b; color: #fff; }
+    .leaflet-popup-content { margin: 12px 14px; }
+    .leaflet-popup-content a { color: inherit; }
+    .leaflet-container a.leaflet-popup-close-button { color: #94a3b8; }
+    .leaflet-container .leaflet-control-attribution { background: rgba(15,23,42,.8); color: #64748b; }
+    .leaflet-control-attribution a { color: #94a3b8; }
   </style>
 </head>
 <body class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 min-h-screen text-white">
@@ -32,98 +69,174 @@
   <div class="max-w-2xl mx-auto px-4 py-12">
 
     <!-- Header -->
-    <div class="text-center mb-10">
+    <div class="text-center mb-8">
       <div class="inline-flex items-center gap-3 mb-2">
         <div class="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center">
           <i class="fas fa-charging-station text-lg"></i>
         </div>
         <h1 class="text-2xl font-bold tracking-tight">EV Charger Status</h1>
       </div>
-      <p class="text-slate-400 text-sm mt-1">IMESAPI · Santa Cruz de Tenerife</p>
+      <p class="text-slate-400 text-sm mt-1">Santa Cruz de Tenerife</p>
       <p id="ts" class="text-slate-600 text-xs mt-1">Loading…</p>
       <p id="sun" class="text-slate-700 text-xs mt-0.5"></p>
     </div>
 
-    <!-- Cards -->
-    <div id="grid" class="grid grid-cols-1 gap-4">
-      <!-- skeleton -->
-      <div class="bg-slate-800/50 rounded-2xl h-36 animate-pulse"></div>
-      <div class="bg-slate-800/50 rounded-2xl h-36 animate-pulse"></div>
+    <!-- Tabs -->
+    <div class="flex justify-center mb-6">
+      <div class="inline-flex bg-slate-800/70 border border-slate-700/40 rounded-full p-1 text-sm font-medium">
+        <button data-tab="favorites" onclick="showTab('favorites')" class="tab-btn px-5 py-1.5 rounded-full transition-all">
+          <i class="fas fa-star mr-1.5"></i>Favorites
+        </button>
+        <button data-tab="map" onclick="showTab('map')" class="tab-btn px-5 py-1.5 rounded-full transition-all">
+          <i class="fas fa-map-location-dot mr-1.5"></i>Map
+        </button>
+      </div>
     </div>
 
-    <!-- Error banner -->
-    <div id="err" class="hidden mt-6 bg-red-950/60 border border-red-800 rounded-xl px-4 py-3 text-sm text-red-300 text-center">
-      <i class="fas fa-triangle-exclamation mr-2"></i><span id="err-msg"></span>
-      <p class="text-xs text-red-500 mt-1">The upstream API may be temporarily unavailable. Try again in a moment.</p>
-    </div>
+    <!-- Favorites tab -->
+    <section id="tab-favorites">
+      <div id="grid" class="grid grid-cols-1 gap-4">
+        <!-- skeleton -->
+        <div class="bg-slate-800/50 rounded-2xl h-36 animate-pulse"></div>
+        <div class="bg-slate-800/50 rounded-2xl h-36 animate-pulse"></div>
+      </div>
+      <div id="err-favorites" class="hidden mt-6 bg-red-950/60 border border-red-800 rounded-xl px-4 py-3 text-sm text-red-300 text-center">
+        <i class="fas fa-triangle-exclamation mr-2"></i><span class="err-msg"></span>
+        <p class="text-xs text-red-500 mt-1">The upstream API may be temporarily unavailable. Try again in a moment.</p>
+      </div>
+    </section>
 
-    <!-- Refresh + Notify -->
+    <!-- Map tab -->
+    <section id="tab-map" class="hidden">
+      <p id="loc-msg" class="mb-3 text-xs text-slate-400"></p>
+      <div class="relative">
+        <div id="map" class="h-80 rounded-2xl overflow-hidden border border-slate-700/40"></div>
+        <div id="map-loading"
+          class="hidden absolute inset-0 z-[1000] pointer-events-none rounded-2xl bg-slate-900/60 backdrop-blur-[1px] flex flex-col items-center justify-center gap-3">
+          <div class="battery"><div class="battery-level"></div><i class="fas fa-bolt battery-bolt"></i></div>
+          <p class="text-sm font-medium text-slate-200">Buscando...</p>
+        </div>
+      </div>
+      <div id="err-map" class="hidden mt-6 bg-red-950/60 border border-red-800 rounded-xl px-4 py-3 text-sm text-red-300 text-center">
+        <i class="fas fa-triangle-exclamation mr-2"></i><span class="err-msg"></span>
+        <p class="text-xs text-red-500 mt-1">The upstream API may be temporarily unavailable. Try again in a moment.</p>
+      </div>
+      <h3 id="nearby-title" class="mt-6 mb-3 text-sm font-semibold text-slate-300"></h3>
+      <div id="nearby-list" class="grid grid-cols-1 gap-2"></div>
+      <p class="text-center text-slate-700 text-xs mt-4">
+        Data: <a href="https://etecnic.es/mapa-de-recarga/" target="_blank" rel="noopener" class="underline">etecnic</a> ·
+        <a href="https://map.electromaps.com/es/" target="_blank" rel="noopener" class="underline">Electromaps</a>
+      </p>
+    </section>
+
+    <!-- Refresh -->
     <div class="flex items-center justify-center gap-3 mt-8">
-      <button id="btn" onclick="load()"
+      <button id="btn" onclick="refresh()"
         class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 active:scale-95 transition-all px-6 py-2 rounded-full text-sm font-medium shadow-lg disabled:opacity-40">
         <i id="ico" class="fas fa-sync-alt"></i>Refresh
       </button>
-      <button id="notify-btn" onclick="toggleNotify()"
-        class="hidden w-10 h-10 rounded-full flex items-center justify-center transition-all active:scale-95 shadow-lg"
-        title="Notify me when a spot opens">
-        <i id="notify-ico" class="fas fa-bell-slash text-sm"></i>
-      </button>
     </div>
-    <p id="notify-msg" class="hidden text-center text-xs mt-2"></p>
 
     <!-- Legend -->
     <div class="mt-8 flex flex-wrap justify-center gap-5 text-xs text-slate-400">
-      <span class="flex items-center gap-2">
+      <span class="fav-only flex items-center gap-2">
         <span class="w-7 h-7 rounded-full bg-green-500 flex items-center justify-center shrink-0">
           <i class="fas fa-plug text-white text-[11px]"></i>
         </span>Available
+      </span>
+      <span class="map-only hidden flex items-center gap-2">
+        <span class="w-7 h-7 rounded-full bg-yellow-400 flex items-center justify-center shrink-0">
+          <i class="fas fa-plug text-slate-900 text-[11px]"></i>
+        </span>Free
+      </span>
+      <span class="map-only hidden flex items-center gap-2">
+        <span class="w-7 h-7 rounded-full bg-green-500 flex items-center justify-center shrink-0">
+          <i class="fas fa-euro-sign text-white text-[11px]"></i>
+        </span>Paid
+      </span>
+      <span class="map-only hidden flex items-center gap-2">
+        <span class="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center shrink-0">
+          <i class="fas fa-plug text-slate-900 text-[11px]"></i>
+        </span>Price unknown
       </span>
       <span class="flex items-center gap-2">
         <span class="w-7 h-7 rounded-full bg-blue-500 flex items-center justify-center shrink-0">
           <i class="fas fa-bolt text-white text-[11px]"></i>
         </span>Busy
       </span>
-      <span class="flex items-center gap-2">
+      <span class="fav-only flex items-center gap-2">
         <span class="w-7 h-7 rounded-full bg-gray-950 border border-gray-600 flex items-center justify-center shrink-0">
           <i class="fas fa-ban text-white text-[11px]"></i>
         </span>Unavailable
+      </span>
+      <span class="map-only hidden flex items-center gap-2">
+        <span class="w-7 h-7 rounded-full bg-slate-500 flex items-center justify-center shrink-0">
+          <i class="fas fa-ban text-white text-[11px]"></i>
+        </span>Out of service
+      </span>
+      <span class="fav-only flex items-center gap-2">
+        <span class="w-7 h-7 rounded-full bg-slate-600 flex items-center justify-center shrink-0">
+          <i class="fas fa-question text-white text-[11px]"></i>
+        </span>Unknown
       </span>
       <span class="flex items-center gap-2">
         <span class="w-7 h-7 rounded-full bg-slate-950 border border-slate-600 flex items-center justify-center shrink-0">
           <i class="fas fa-moon text-slate-400 text-[11px]"></i>
         </span>Night closure
       </span>
+      <span class="map-only hidden flex items-center gap-2">
+        <span class="w-7 h-7 flex items-center justify-center shrink-0">
+          <i class="fas fa-star text-yellow-400 text-xl"></i>
+        </span>Favorite
+      </span>
     </div>
 
     <p class="text-center text-slate-700 text-xs mt-5">
-      <i class="fas fa-clock mr-1"></i>Auto-refreshes every 30 s
+      <i class="fas fa-clock mr-1"></i><span id="refresh-note">Auto-refreshes every 30 s</span>
     </p>
   </div>
 
   <script>
     const STATUS = {
-      0: { label: 'Available',   es: 'Disponible',        bg: 'bg-green-500', glow: 'glow-green', icon: 'fa-plug', border: 'border-green-500/20' },
-      1: { label: 'Busy',        es: 'Ocupado',           bg: 'bg-blue-500',  glow: 'glow-blue',  icon: 'fa-bolt', border: 'border-blue-500/20'  },
-      2: { label: 'Reserved',    es: 'Reservado',         bg: 'bg-blue-500',  glow: 'glow-blue',  icon: 'fa-bolt', border: 'border-blue-500/20'  },
-      3: { label: 'Unavailable', es: 'Fuera de servicio', bg: 'bg-gray-950',  glow: '',           icon: 'fa-ban',  border: 'border-gray-700/40'  },
-      9: { label: 'Unavailable', es: 'Error',             bg: 'bg-gray-950',  glow: '',           icon: 'fa-ban',  border: 'border-gray-700/40'  },
+      available:   { label: 'Available',     bg: 'bg-green-500', glow: 'glow-green', icon: 'fa-plug',     color: '#22c55e' },
+      busy:        { label: 'Busy',          bg: 'bg-blue-500',  glow: 'glow-blue',  icon: 'fa-bolt',     color: '#3b82f6' },
+      unavailable: { label: 'Unavailable',   bg: 'bg-gray-950',  glow: '',           icon: 'fa-ban',      color: '#1c1917' },
+      unknown:     { label: 'Unknown',       bg: 'bg-slate-600', glow: '',           icon: 'fa-question', color: '#64748b' },
+      night:       { label: 'Night closure', bg: 'bg-slate-950', glow: '',           icon: 'fa-moon',     color: '#0f172a' },
     };
 
-    const NIGHT_CLOSURE = {
-      label: 'Night closure', es: 'Cierre nocturno',
-      bg: 'bg-slate-950', glow: '', icon: 'fa-moon', border: 'border-slate-700/40',
+    // Iglesia closes at night even though the API keeps reporting it
+    const NIGHT_STATION = 'etecnic:30514';
+
+    const DEFAULT_FAVORITES = [
+      { key: 'etecnic:23967', name: 'Kisoco' },
+      { key: 'etecnic:30514', name: 'Iglesia' },
+    ];
+
+    const CHARGERS_URL = '/.netlify/functions/chargers';
+    const NEARBY_URL   = '/.netlify/functions/nearby';
+    const SOURCE_NAMES = { etecnic: 'etecnic', electromaps: 'Electromaps' };
+
+    // Vector base map; keep only water, streets and place names so pins stand out
+    const MAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/dark';
+    const HIDDEN_MAP_LAYERS = /^(building|landuse|landcover|aeroway|railway|road_oneway|road_area_pier|road_pier)/;
+    // Brighter streets on the app's slate palette; main roads lighter than side streets
+    const MAP_PAINT = {
+      background:              { 'background-color': '#0f172a' },
+      water:                   { 'fill-color': '#132540' },
+      waterway:                { 'line-color': '#132540' },
+      highway_path:            { 'line-color': '#334155' },
+      highway_minor:           { 'line-color': '#334155', 'line-opacity': 1 },
+      highway_major_casing:    { 'line-color': '#1e293b' },
+      highway_major_inner:     { 'line-color': '#475569' },
+      highway_major_subtle:    { 'line-color': '#475569' },
+      highway_motorway_casing: { 'line-color': '#1e293b' },
+      highway_motorway_inner:  { 'line-color': '#64748b' },
+      highway_motorway_subtle: { 'line-color': '#475569' },
     };
 
-    const TARGETS       = ['IMESAPI - SELBA EdRSR 12', 'IMESAPI - SELBA EdRSR 16'];
-    const NIGHT_STATION = 'IMESAPI - SELBA EdRSR 16';
-    const DISPLAY_NAMES = {
-      'IMESAPI - SELBA EdRSR 12': 'Kisoco',
-      'IMESAPI - SELBA EdRSR 16': 'Iglesia',
-    };
-
-    const PROXY_URL  = 'https://api.allorigins.win/get?url=' +
-                       encodeURIComponent('https://etecnic.net/api/v1/chargers/index.json');
-    const LOCAL_URLS = ['/.netlify/functions/chargers', '/api/chargers'];
+    // Used as map centre when the browser won't give us a location
+    const FALLBACK_POS = { lat: 28.4636, lon: -16.2518 };
 
     const SUN_URL = 'https://api.sunrise-sunset.org/json?lat=28.4636&lng=-16.2518&formatted=0';
     let sunCache = null;
@@ -138,19 +251,135 @@
       return sunCache;
     }
 
-    function isNight(sun) {
-      const now = new Date();
-      return now < sun.sunrise || now > sun.sunset;
+    async function isNightNow() {
+      try {
+        const sun = await getSunTimes();
+        const now = new Date();
+        return now < sun.sunrise || now > sun.sunset;
+      } catch {
+        return false;
+      }
     }
 
     function fmt(d) {
       return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
 
-    function cfg(code) {
-      return STATUS[code] ?? {
-        label: 'Unknown', es: '—', bg: 'bg-slate-600', glow: '', icon: 'fa-question', border: 'border-slate-600/20'
-      };
+    function esc(s) {
+      return String(s ?? '').replace(/[&<>"']/g, c =>
+        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    function cfg(status) {
+      return STATUS[status] ?? STATUS.unknown;
+    }
+
+    function effective(station, status, night) {
+      return night && station.key === NIGHT_STATION ? 'night' : status;
+    }
+
+    function directionsUrl(s) {
+      return `https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lon}`;
+    }
+
+    function freeSummary(s, night) {
+      const st = effective(s, s.status, night);
+      if (st === 'night') return cfg(st).label;
+      if (st === 'unknown') {
+        const down = s.sockets?.filter(sk => sk.status === 'unavailable').length || 0;
+        return down ? `${down}/${s.sockets.length} out of service · rest no live status` : 'No live status';
+      }
+      if (!s.sockets?.length) return cfg(st).label;
+      const free = s.sockets.filter(sk => sk.status === 'available').length;
+      return `${free}/${s.sockets.length} available`;
+    }
+
+    // Map pins: grey only when out of service, blue when busy; anything else
+    // (available, or no live status) is coloured by price. Paid pins carry a €.
+    const PIN = {
+      free:        { color: '#facc15', fg: '#0f172a', label: 'Free' },
+      paid:        { color: '#22c55e', fg: '#ffffff', label: 'Paid' },
+      unpriced:    { color: '#e2e8f0', fg: '#0f172a', label: 'Price unknown' },
+      busy:        { color: '#3b82f6', fg: '#ffffff', label: 'Busy' },
+      unavailable: { color: '#64748b', fg: '#ffffff', label: 'Out of service' },
+      night:       { color: '#0f172a', fg: '#94a3b8', label: 'Night closure' },
+    };
+    const PRICE_LABELS = { free: 'Free', paid: 'Paid' };
+
+    function pinState(s, night) {
+      const st = effective(s, s.status, night);
+      if (st === 'night' || st === 'unavailable' || st === 'busy') return st;
+      return s.price === 'free' || s.price === 'paid' ? s.price : 'unpriced';
+    }
+
+    function isOpen(s, night) {
+      return ['free', 'paid', 'unpriced'].includes(pinState(s, night));
+    }
+
+    function pinColor(s, night) {
+      return PIN[pinState(s, night)].color;
+    }
+
+    function priceLabel(s) {
+      if (s.price === 'paid' && s.priceText) return `Paid · ${s.priceText}`;
+      return PRICE_LABELS[s.price] || '';
+    }
+
+    function setError(tab, msg) {
+      const el = document.getElementById('err-' + tab);
+      el.querySelector('.err-msg').textContent = msg || '';
+      el.classList.toggle('hidden', !msg);
+    }
+
+    // ── Favorites storage ───────────────────────────────────────────
+    function getFavorites() {
+      try {
+        const f = JSON.parse(localStorage.getItem('favorites'));
+        if (Array.isArray(f)) return f;
+      } catch {}
+      return DEFAULT_FAVORITES;
+    }
+
+    function saveFavorites(list) {
+      localStorage.setItem('favorites', JSON.stringify(list));
+    }
+
+    function isFavorite(key) {
+      return getFavorites().some(f => f.key === key);
+    }
+
+    // A map pin can stand for several listings of the same charger; it counts
+    // as a favorite if any of them is one
+    function favKey(s) {
+      return [s.key, ...(s.aliases || [])].find(isFavorite) || s.key;
+    }
+
+    function toggleFavorite(key) {
+      const favs = getFavorites();
+      const existing = favs.find(f => f.key === key);
+      if (existing) {
+        if (!confirm(`Remove "${existing.name}" from favorites?`)) return;
+        saveFavorites(favs.filter(f => f.key !== key));
+      } else {
+        const s = nearbyByKey.get(key);
+        if (!s) return;
+        saveFavorites([...favs, { key, name: s.name }]);
+      }
+      loadFavorites();
+      if (lastNearby) {
+        renderNearbyMarkers();
+        renderNearbyList();
+      }
+    }
+
+    function starButton(key, size = 'text-base') {
+      const fav = isFavorite(key);
+      return `
+        <button onclick="event.stopPropagation(); toggleFavorite('${esc(key)}')"
+          class="shrink-0 w-8 h-8 rounded-full flex items-center justify-center hover:bg-slate-700/60 transition-all active:scale-90"
+          title="${fav ? 'Remove from favorites' : 'Add to favorites'}">
+          <i class="${fav ? 'fas text-yellow-400' : 'far text-slate-500'} fa-star ${size}"></i>
+        </button>`;
     }
 
     // ── Canvas favicon ──────────────────────────────────────────────
@@ -170,11 +399,12 @@
       return _paths[name];
     }
 
-    function iconForStatus(status, night) {
-      if (night)                      return { bg: '#0f172a', name: 'moon', vw: 384, vh: 512, fg: '#94a3b8' };
-      if (status === 0)               return { bg: '#22c55e', name: 'plug', vw: 384, vh: 512, fg: '#ffffff' };
-      if (status === 1 || status === 2) return { bg: '#3b82f6', name: 'bolt', vw: 448, vh: 512, fg: '#ffffff' };
-      return                                 { bg: '#1c1917', name: 'ban',  vw: 512, vh: 512, fg: '#ffffff' };
+    function iconForStatus(status) {
+      if (status === 'night')     return { bg: '#0f172a', name: 'moon', vw: 384, vh: 512, fg: '#94a3b8' };
+      if (status === 'available') return { bg: '#22c55e', name: 'plug', vw: 384, vh: 512, fg: '#ffffff' };
+      if (status === 'busy')      return { bg: '#3b82f6', name: 'bolt', vw: 448, vh: 512, fg: '#ffffff' };
+      if (status === 'unknown')   return { bg: '#475569', name: 'ban',  vw: 512, vh: 512, fg: '#ffffff' };
+      return                             { bg: '#1c1917', name: 'ban',  vw: 512, vh: 512, fg: '#ffffff' };
     }
 
     function rrect(ctx, x, y, w, h, r) {
@@ -200,10 +430,10 @@
       rrect(ctx, 0, 0, S, S, 24);
       ctx.fill();
 
-      socketInfos.forEach(({ status, night }, i) => {
+      socketInfos.forEach(({ status }, i) => {
         const x = GAP + (i % 2) * (CELL + GAP);
         const y = GAP + Math.floor(i / 2) * (CELL + GAP);
-        const { bg, name, vw, vh, fg } = iconForStatus(status, night);
+        const { bg, name, vw, vh, fg } = iconForStatus(status);
 
         ctx.fillStyle = bg;
         rrect(ctx, x, y, CELL, CELL, CR);
@@ -225,206 +455,415 @@
     }
     // ────────────────────────────────────────────────────────────────
 
-    function stationCard(station, sockets, night) {
-      const forceNight = night && station.name === NIGHT_STATION;
-      const anyAvail = !forceNight && sockets.some(sk => sk.status === 0);
-      const anyBusy  = !forceNight && sockets.some(sk => sk.status === 1 || sk.status === 2);
-      const border   = anyAvail ? 'border-green-500/30' : anyBusy ? 'border-blue-500/20' : 'border-slate-700/40';
-      const displayName = DISPLAY_NAMES[station.name] || station.name;
-
-      const socketHtml = sockets.map(sk => {
-        const c = forceNight ? NIGHT_CLOSURE : cfg(sk.status);
-        const iconColor = forceNight ? 'text-slate-400' : 'text-white';
+    // ── Favorites tab ───────────────────────────────────────────────
+    function stationCard(fav, station, night) {
+      if (!station || station.error) {
         return `
-          <div class="flex-1 flex flex-col items-center gap-2">
+          <div class="bg-slate-800/70 border border-slate-700/40 rounded-2xl p-5 flex items-start justify-between gap-3">
+            <div class="min-w-0 flex-1">
+              <h2 class="text-base font-bold text-white break-words">${esc(fav.name)}</h2>
+              <p class="text-xs text-slate-500 mt-0.5">Status unavailable right now</p>
+            </div>
+            ${starButton(fav.key)}
+          </div>`;
+      }
+
+      const statuses = station.sockets.map(sk => effective(station, sk.status, night));
+      const border = statuses.includes('available') ? 'border-green-500/30'
+                   : statuses.includes('busy')      ? 'border-blue-500/20'
+                   : 'border-slate-700/40';
+
+      const socketHtml = station.sockets.map((sk, i) => {
+        const c = cfg(statuses[i]);
+        const iconColor = statuses[i] === 'night' ? 'text-slate-400' : 'text-white';
+        return `
+          <div class="w-20 flex flex-col items-center gap-2">
             <div class="w-16 h-16 rounded-full ${c.bg} border border-slate-700/30 ${c.glow} flex items-center justify-center shadow-lg">
               <i class="fas ${c.icon} ${iconColor} text-2xl"></i>
             </div>
-            <p class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Socket ${sk.socket_number}</p>
+            <p class="text-[10px] font-semibold uppercase tracking-widest text-slate-500 text-center">Socket ${sk.n}${sk.kw ? ` · ${sk.kw} kW` : ''}</p>
           </div>`;
       }).join('');
 
       return `
         <div class="bg-slate-800/70 border ${border} rounded-2xl p-5">
-          <div class="mb-4">
-            <h2 class="text-base font-bold text-white">${displayName}</h2>
-            <p class="text-xs text-slate-400 mt-0.5">${station.address || ''}</p>
+          <div class="mb-4 flex items-start justify-between gap-3">
+            <div class="min-w-0 flex-1">
+              <h2 class="text-base font-bold text-white break-words">${esc(fav.name)}</h2>
+              <p class="text-xs text-slate-400 mt-0.5">${esc(station.address)}</p>
+            </div>
+            <div class="flex items-center shrink-0">
+              <a href="${directionsUrl(station)}" target="_blank" rel="noopener" title="Directions"
+                class="w-8 h-8 rounded-full flex items-center justify-center text-slate-500 hover:text-white hover:bg-slate-700/60 transition-all">
+                <i class="fas fa-diamond-turn-right"></i>
+              </a>
+              ${starButton(fav.key)}
+            </div>
           </div>
-          <div class="flex gap-4 justify-around">${socketHtml}</div>
+          <div class="flex flex-wrap gap-4 justify-around">${socketHtml || '<p class="text-xs text-slate-500">No connector data</p>'}</div>
         </div>`;
     }
 
-    function render(data, sun) {
-      const night = sun ? isNight(sun) : false;
-      const stations = data
-        .filter(s => TARGETS.includes(s.name))
-        .sort((a, b) => a.name.localeCompare(b.name));
+    function renderFavorites(favs, stations, sun, night) {
+      const byKey = new Map(stations.map(s => [s.key, s]));
+      const pairs = favs.map(f => ({ fav: f, station: byKey.get(f.key) }));
 
-      if (!stations.length) throw new Error('Target stations not found in API response');
-
-      const cards = [], favIcons = [];
-      stations.forEach(s => {
-        const forceNight = night && s.name === NIGHT_STATION;
-        const sockets = s.charger_sockets
-          .sort((a, b) => a.socket_number - b.socket_number)
-          .slice(0, 2);
-        cards.push(stationCard(s, sockets, night));
-        sockets.forEach(sk => favIcons.push({ status: sk.status, night: forceNight }));
-      });
-
-      document.getElementById('grid').innerHTML = cards.join('');
-      document.getElementById('ts').textContent = 'Last updated: ' + new Date().toLocaleTimeString();
+      document.getElementById('grid').innerHTML = pairs.length
+        ? pairs.map(p => stationCard(p.fav, p.station, night)).join('')
+        : `<div class="bg-slate-800/50 border border-slate-700/40 rounded-2xl p-8 text-center text-sm text-slate-400">
+             <i class="far fa-star text-2xl mb-3 block text-slate-500"></i>
+             No favorites yet — add some from the <button onclick="showTab('map')" class="underline">Map</button> tab.
+           </div>`;
       document.getElementById('sun').textContent = sun
         ? `☀️ Sunrise ${fmt(sun.sunrise)} · 🌙 Sunset ${fmt(sun.sunset)}`
         : '';
-      document.getElementById('err').classList.add('hidden');
-      drawFavicon(favIcons);
+      setError('favorites', null);
+
+      const socketInfos = pairs
+        .filter(p => p.station && !p.station.error)
+        .flatMap(p => p.station.sockets.map(sk => ({ status: effective(p.station, sk.status, night) })));
+      drawFavicon(socketInfos.slice(0, 4));
 
       // Update app badge with count of available chargers (Android home screen)
-      const availableCount = favIcons.filter(f => !f.night && f.status === 0).length;
+      const availableCount = socketInfos.filter(s => s.status === 'available').length;
       if ('setAppBadge' in navigator) {
         availableCount > 0 ? navigator.setAppBadge(availableCount) : navigator.clearAppBadge();
       }
 
       // Push latest status to SW so it can serve a fresh /icon on next request
       if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage({ type: 'STATUS_UPDATE', sockets: favIcons });
+        navigator.serviceWorker.controller.postMessage({ type: 'STATUS_UPDATE', sockets: socketInfos.slice(0, 4) });
       }
     }
 
-    async function tryLocal() {
-      for (const url of LOCAL_URLS) {
-        try {
-          const r = await fetch(url, { signal: AbortSignal.timeout(5000) });
-          if (r.ok) return r.json();
-        } catch {}
+    async function loadFavorites() {
+      const favs = getFavorites();
+      try {
+        const [stations, sun] = await Promise.all([
+          favs.length
+            ? fetch(`${CHARGERS_URL}?ids=${encodeURIComponent(favs.map(f => f.key).join(','))}`,
+                    { signal: AbortSignal.timeout(15000) })
+                .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+            : [],
+          getSunTimes().catch(() => null),
+        ]);
+        const night = sun ? await isNightNow() : false;
+        renderFavorites(favs, stations, sun, night);
+        markUpdated('favorites');
+      } catch (e) {
+        setError('favorites', e.message);
+        document.getElementById('grid').innerHTML = '';
+        markUpdated('favorites', true);
       }
-      throw new Error('No local proxy available');
     }
 
-    async function tryProxy() {
-      const r = await fetch(PROXY_URL, { signal: AbortSignal.timeout(15000) });
-      if (!r.ok) throw new Error(`Proxy HTTP ${r.status}`);
-      const wrap = await r.json();
-      return JSON.parse(wrap.contents);
+    // ── Map tab ─────────────────────────────────────────────────────
+    // Stations are loaded for whatever is in view; below this zoom there are too many
+    const MIN_LOAD_ZOOM = 11;
+    const START_ZOOM    = 16;
+
+    let map, stationLayer, userLayer;
+    let nearbyByKey = new Map(), markersByKey = new Map();
+    let lastNearby = null;   // { stations, night, zoomedOut? }
+    let userPos = null;
+
+    function ensureMap() {
+      if (map) return;
+      map = L.map('map');
+      fetch(MAP_STYLE_URL)
+        .then(r => r.json())
+        .then(style => {
+          style.layers = style.layers
+            .filter(l => !HIDDEN_MAP_LAYERS.test(l.id))
+            .map(l => MAP_PAINT[l.id] ? { ...l, paint: { ...l.paint, ...MAP_PAINT[l.id] } } : l);
+          L.maplibreGL({
+            style,
+            attribution: '<a href="https://openfreemap.org">OpenFreeMap</a> &copy; <a href="https://www.openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+          }).addTo(map);
+        })
+        .catch(() => setError('map', 'Could not load the base map'));
+      userLayer    = L.layerGroup().addTo(map);
+      stationLayer = L.layerGroup().addTo(map);
+      map.setView([FALLBACK_POS.lat, FALLBACK_POS.lon], START_ZOOM);
+
+      let moveTimer;
+      map.on('moveend', () => {
+        clearTimeout(moveTimer);
+        moveTimer = setTimeout(() => withMapLoading(loadNearby), 350);
+      });
     }
 
-    async function load() {
+    function locate() {
+      return new Promise(resolve => {
+        if (!('geolocation' in navigator)) return resolve({ error: 'Geolocation not supported' });
+        navigator.geolocation.getCurrentPosition(
+          p => resolve({ pos: { lat: p.coords.latitude, lon: p.coords.longitude } }),
+          e => resolve({ error: e.code === e.PERMISSION_DENIED ? 'Location permission denied' : 'Could not get your location' }),
+          { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+        );
+      });
+    }
+
+    // Overlay while locating / fetching; a counter since loads can overlap
+    let mapBusy = 0;
+    async function withMapLoading(fn) {
+      document.getElementById('map-loading').classList.remove('hidden');
+      mapBusy++;
+      try {
+        return await fn();
+      } finally {
+        if (--mapBusy === 0) document.getElementById('map-loading').classList.add('hidden');
+      }
+    }
+
+    // Ask for the location, draw the "you are here" dot and pan to it
+    function centerOnUser() {
+      return withMapLoading(locateAndCenter);
+    }
+
+    async function locateAndCenter() {
+      ensureMap();
+      const locMsg = document.getElementById('loc-msg');
+      if (!userPos) locMsg.innerHTML = '<i class="fas fa-location-crosshairs mr-1"></i>Requesting your location…';
+      const { pos, error } = await locate();
+      if (pos) userPos = pos;
+      locMsg.innerHTML = userPos
+        ? '<i class="fas fa-location-dot mr-1 text-blue-400"></i>Chargers near you'
+        : `<i class="fas fa-location-crosshairs mr-1 text-amber-400"></i>${esc(error)} — showing Santa Cruz de Tenerife`;
+
+      userLayer.clearLayers();
+      if (userPos) {
+        L.circleMarker([userPos.lat, userPos.lon], {
+          radius: 7, color: '#ffffff', weight: 2, fillColor: '#3b82f6', fillOpacity: 1,
+        }).bindTooltip('You are here').addTo(userLayer);
+      }
+      const c = userPos || FALLBACK_POS;
+      map.setView([c.lat, c.lon], Math.max(map.getZoom(), MIN_LOAD_ZOOM + 3));
+      await loadNearby();
+    }
+
+    function fmtKm(km) {
+      return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
+    }
+
+    function popupHtml(s) {
+      const night = lastNearby?.night;
+      return `
+        <div class="min-w-[200px] max-w-[260px]">
+          <div class="flex items-start justify-between gap-2">
+            <div class="min-w-0">
+              <p class="font-semibold text-sm leading-snug break-words">${esc(s.name)}</p>
+              ${s.address ? `<p class="text-xs text-slate-400 mt-0.5">${esc(s.address)}</p>` : ''}
+            </div>
+            ${starButton(favKey(s), 'text-sm')}
+          </div>
+          ${s.count > 1 ? `<p class="text-[11px] text-slate-400 mt-1"><i class="fas fa-layer-group mr-1"></i>${s.count} chargers at this spot</p>` : ''}
+          <p class="text-xs mt-2">
+            <span class="inline-block w-2 h-2 rounded-full mr-1" style="background:${pinColor(s, night)}"></span>${esc(freeSummary(s, night))}
+            ${s.power ? ` · ${s.power} kW` : ''}${userPos ? ` · ${fmtKm(s.distance)}` : ''}
+          </p>
+          ${priceLabel(s) ? `<p class="text-xs mt-1 ${s.price === 'free' ? 'text-yellow-400' : 'text-slate-300'}">
+            <i class="fas ${s.price === 'free' ? 'fa-gift' : 'fa-euro-sign'} mr-1"></i>${esc(priceLabel(s))}</p>` : ''}
+          <p class="text-[11px] text-slate-500 mt-1">${SOURCE_NAMES[s.source]}</p>
+          <div class="flex gap-2 mt-3 text-xs">
+            <a href="${directionsUrl(s)}" target="_blank" rel="noopener"
+              class="bg-blue-600 hover:bg-blue-500 rounded-full px-3 py-1"><i class="fas fa-diamond-turn-right mr-1"></i>Directions</a>
+            ${s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener" class="bg-slate-700 hover:bg-slate-600 rounded-full px-3 py-1">Electromaps</a>` : ''}
+          </div>
+        </div>`;
+    }
+
+    // Favorites are stars, everything else a dot; both take the pin colour
+    const PIN_ORDER = { free: 3, paid: 3, unpriced: 3, busy: 2, unavailable: 0, night: 0 };
+
+    function pinIcon(s, night) {
+      const state = pinState(s, night);
+      const { color, fg } = PIN[state];
+      const outline = state === 'night' ? '#64748b' : '#0f172a';
+      if (isFavorite(favKey(s))) {
+        return L.divIcon({
+          className: '', iconSize: [28, 28], popupAnchor: [0, -12],
+          html: `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center">
+                   <i class="fas fa-star" style="font-size:26px;color:${color};-webkit-text-stroke:1.5px ${outline};filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))"></i>
+                 </div>`,
+        });
+      }
+      const open = PIN_ORDER[state] === 3;
+      const size = open ? 20 : 15;
+      const euro = s.price === 'paid'
+        ? `<i class="fas fa-euro-sign" style="font-size:${Math.round(size * 0.55)}px;color:${fg}"></i>` : '';
+      return L.divIcon({
+        className: '', iconSize: [size, size], popupAnchor: [0, -size / 2],
+        html: `<div style="width:100%;height:100%;border-radius:9999px;display:flex;align-items:center;justify-content:center;
+                 background:${color};border:1.5px solid ${outline};opacity:${open ? 1 : 0.9}">${euro}</div>`,
+      });
+    }
+
+    // Update markers in place so an open popup survives refreshes and panning
+    function renderNearbyMarkers() {
+      const { stations, night } = lastNearby;
+      const keep = new Set(stations.map(s => s.key));
+      for (const [key, m] of markersByKey) {
+        if (!keep.has(key) && !m.isPopupOpen()) {
+          stationLayer.removeLayer(m);
+          markersByKey.delete(key);
+        }
+      }
+      stations.forEach(s => {
+        const zIndexOffset = PIN_ORDER[pinState(s, night)] * 1000 + (isFavorite(favKey(s)) ? 10000 : 0);
+        let m = markersByKey.get(s.key);
+        if (m) {
+          m.setIcon(pinIcon(s, night));
+          m.setZIndexOffset(zIndexOffset);
+          if (m.isPopupOpen()) m.setPopupContent(() => popupHtml(nearbyByKey.get(s.key)));
+        } else {
+          m = L.marker([s.lat, s.lon], { icon: pinIcon(s, night), zIndexOffset })
+            .bindPopup(() => popupHtml(nearbyByKey.get(s.key)));
+          m.addTo(stationLayer);
+          markersByKey.set(s.key, m);
+        }
+      });
+    }
+
+    function renderNearbyList() {
+      const { stations, night, zoomedOut } = lastNearby;
+      const available = stations.filter(s => isOpen(s, night)).slice(0, 25);
+
+      document.getElementById('nearby-title').textContent = zoomedOut
+        ? 'Zoom in to see chargers'
+        : available.length
+          ? `Available in this area (${available.length})`
+          : 'No available chargers in this area';
+
+      document.getElementById('nearby-list').innerHTML = available.map(s => `
+        <div onclick="focusStation('${esc(s.key)}')"
+          class="bg-slate-800/70 border border-slate-700/40 hover:border-green-500/30 rounded-xl px-4 py-3 flex items-center gap-3 cursor-pointer transition-all">
+          <span class="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style="background:${pinColor(s, night)}">
+            <i class="fas ${isFavorite(favKey(s)) ? 'fa-star' : s.price === 'paid' ? 'fa-euro-sign' : 'fa-plug'} text-xs" style="color:${PIN[pinState(s, night)].fg}"></i>
+          </span>
+          <div class="min-w-0 flex-1">
+            <p class="text-sm font-semibold truncate">${esc(s.name)}</p>
+            <p class="text-xs text-slate-400 truncate">
+              ${esc(freeSummary(s, night))}${s.power ? ` · ${s.power} kW` : ''}${priceLabel(s) ? ` · ${esc(priceLabel(s))}` : ''} · ${SOURCE_NAMES[s.source]}
+            </p>
+          </div>
+          ${userPos ? `<span class="text-xs text-slate-300 shrink-0">${fmtKm(s.distance)}</span>` : ''}
+          <a href="${directionsUrl(s)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Directions"
+            class="shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-slate-500 hover:text-white hover:bg-slate-700/60 transition-all">
+            <i class="fas fa-diamond-turn-right"></i>
+          </a>
+          ${starButton(favKey(s))}
+        </div>`).join('');
+    }
+
+    function focusStation(key) {
+      const s = nearbyByKey.get(key), m = markersByKey.get(key);
+      if (!s || !m) return;
+      map.setView([s.lat, s.lon], Math.max(map.getZoom(), 16));
+      m.openPopup();
+      document.getElementById('map').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    let nearbySeq = 0;
+    async function loadNearby() {
+      ensureMap();
+      const seq = ++nearbySeq;
+
+      if (map.getZoom() < MIN_LOAD_ZOOM) {
+        lastNearby = { stations: [], night: false, zoomedOut: true };
+        nearbyByKey = new Map();
+        renderNearbyMarkers();
+        renderNearbyList();
+        return;
+      }
+
+      const b = map.getBounds().pad(0.1);
+      const ref = userPos || { lat: map.getCenter().lat, lon: map.getCenter().lng };
+      const params = new URLSearchParams({
+        latNE: b.getNorth().toFixed(5), lngNE: b.getEast().toFixed(5),
+        latSW: b.getSouth().toFixed(5), lngSW: b.getWest().toFixed(5),
+        lat: ref.lat.toFixed(5), lon: ref.lon.toFixed(5),
+      });
+
+      try {
+        const [r, night] = await Promise.all([
+          fetch(`${NEARBY_URL}?${params}`, { signal: AbortSignal.timeout(20000) }),
+          isNightNow(),
+        ]);
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const { stations, sources } = await r.json();
+        if (seq !== nearbySeq) return;   // the map moved again meanwhile
+
+        lastNearby = { stations, night };
+        nearbyByKey = new Map(stations.map(s => [s.key, s]));
+        renderNearbyMarkers();
+        renderNearbyList();
+
+        const failed = Object.entries(sources).filter(([, v]) => v !== 'ok').map(([k]) => SOURCE_NAMES[k]);
+        setError('map', failed.length ? `${failed.join(', ')} could not be reached` : null);
+        markUpdated('map');
+      } catch (e) {
+        if (seq !== nearbySeq) return;
+        setError('map', e.message);
+        markUpdated('map', true);
+      }
+    }
+
+    // ── Tabs, refresh ───────────────────────────────────────────────
+    let activeTab = 'favorites';
+    const updated = {};
+
+    function markUpdated(tab, failed = false) {
+      updated[tab] = (failed ? 'Failed — ' : 'Last updated: ') + new Date().toLocaleTimeString();
+      if (tab === activeTab) document.getElementById('ts').textContent = updated[tab];
+    }
+
+    function showTab(tab) {
+      activeTab = tab;
+      document.querySelectorAll('.tab-btn').forEach(b => {
+        const on = b.dataset.tab === tab;
+        b.classList.toggle('bg-blue-600', on);
+        b.classList.toggle('text-white', on);
+        b.classList.toggle('text-slate-400', !on);
+        b.classList.toggle('hover:text-white', !on);
+      });
+      document.getElementById('tab-favorites').classList.toggle('hidden', tab !== 'favorites');
+      document.getElementById('tab-map').classList.toggle('hidden', tab !== 'map');
+      document.querySelectorAll('.map-only').forEach(el => el.classList.toggle('hidden', tab !== 'map'));
+      document.querySelectorAll('.fav-only').forEach(el => el.classList.toggle('hidden', tab === 'map'));
+      document.getElementById('ts').textContent = updated[tab] || 'Loading…';
+      document.getElementById('refresh-note').textContent =
+        `Auto-refreshes every ${tab === 'map' ? 60 : 30} s`;
+
+      if (tab === 'map') {
+        ensureMap();
+        map.invalidateSize();
+        if (!lastNearby) centerOnUser();
+      }
+    }
+
+    async function refresh() {
       const btn = document.getElementById('btn');
       const ico = document.getElementById('ico');
       btn.disabled = true;
       ico.style.transition = 'transform .5s ease';
       ico.style.transform = 'rotate(360deg)';
       setTimeout(() => { ico.style.transition = ''; ico.style.transform = ''; }, 550);
-
       try {
-        const [dataResult, sunResult] = await Promise.allSettled([
-          (async () => {
-            const d = await tryLocal().catch(() => null);
-            return d ?? await tryProxy();
-          })(),
-          getSunTimes(),
-        ]);
-
-        if (dataResult.status === 'rejected') throw dataResult.reason;
-        const sun = sunResult.status === 'fulfilled' ? sunResult.value : null;
-        render(dataResult.value, sun);
-      } catch (e) {
-        document.getElementById('err-msg').textContent = e.message;
-        document.getElementById('err').classList.remove('hidden');
-        document.getElementById('ts').textContent = 'Failed — ' + new Date().toLocaleTimeString();
-        document.getElementById('grid').innerHTML = '';
+        await (activeTab === 'map' ? centerOnUser() : loadFavorites());
       } finally {
         btn.disabled = false;
       }
     }
 
-    load();
-    setInterval(load, 30_000);
-
-    // ── Web Push notifications ───────────────────────────────────────
-    const VAPID_PUBLIC = 'BKjU05zV18M_uXynTIT5UYr_DeMdjFMB8pVBkbUr8_rIalzoBlzg-xCPp_S6yHn_p9Vs7IlJhLodgZ8aSrkZVzQ';
-
-    function urlB64ToUint8(b64) {
-      const pad = '='.repeat((4 - b64.length % 4) % 4);
-      const b = atob((b64 + pad).replace(/-/g, '+').replace(/_/g, '/'));
-      return Uint8Array.from([...b].map(c => c.charCodeAt(0)));
-    }
-
-    async function getSub() {
-      if (!('serviceWorker' in navigator) || !('PushManager' in window)) return null;
-      const reg = await navigator.serviceWorker.ready;
-      return reg.pushManager.getSubscription();
-    }
-
-    async function updateNotifyUI() {
-      const btn = document.getElementById('notify-btn');
-      const ico = document.getElementById('notify-ico');
-      const msg = document.getElementById('notify-msg');
-      if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
-
-      btn.classList.remove('hidden');
-      const sub = await getSub();
-
-      if (Notification.permission === 'denied') {
-        btn.className = btn.className.replace('hidden', '') + ' bg-slate-800 opacity-40 cursor-not-allowed';
-        btn.title = 'Notifications blocked — enable in browser settings';
-        ico.className = 'fas fa-bell-slash text-sm text-slate-500';
-        return;
-      }
-
-      if (sub) {
-        btn.className = 'w-10 h-10 rounded-full flex items-center justify-center transition-all active:scale-95 shadow-lg bg-blue-600 hover:bg-blue-500';
-        btn.title = 'Notifications on — tap to turn off';
-        ico.className = 'fas fa-bell text-sm text-white';
-      } else {
-        btn.className = 'w-10 h-10 rounded-full flex items-center justify-center transition-all active:scale-95 shadow-lg bg-slate-700 hover:bg-slate-600';
-        btn.title = 'Notify me when a spot opens';
-        ico.className = 'fas fa-bell-slash text-sm text-slate-300';
-      }
-      msg.classList.add('hidden');
-    }
-
-    async function toggleNotify() {
-      const msg = document.getElementById('notify-msg');
-      const sub = await getSub();
-      try {
-        if (sub) {
-          await fetch('/.netlify/functions/unsubscribe', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ endpoint: sub.endpoint }),
-          });
-          await sub.unsubscribe();
-        } else {
-          const reg = await navigator.serviceWorker.ready;
-          const newSub = await reg.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: urlB64ToUint8(VAPID_PUBLIC),
-          });
-          const r = await fetch('/.netlify/functions/subscribe', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(newSub),
-          });
-          if (!r.ok) throw new Error('server error');
-          msg.textContent = "You'll be notified when a spot opens.";
-          msg.className = 'text-center text-xs mt-2 text-slate-400';
-        }
-      } catch (e) {
-        msg.textContent = 'Could not update notifications: ' + e.message;
-        msg.className = 'text-center text-xs mt-2 text-red-400';
-      }
-      updateNotifyUI();
-    }
-    // ────────────────────────────────────────────────────────────────
+    showTab('favorites');
+    loadFavorites();
+    setInterval(loadFavorites, 30_000);
+    setInterval(() => { if (activeTab === 'map' && !document.hidden) loadNearby(); }, 60_000);
 
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js')
-        .then(reg => {
-          updateNotifyUI();
-          reg.update(); // re-check manifest + icon on every page visit
-        })
+        .then(reg => reg.update()) // re-check manifest + icon on every page visit
         .catch(() => {});
     }
   </script>

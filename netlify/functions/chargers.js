@@ -1,24 +1,37 @@
-const TARGETS = new Set(['IMESAPI - SELBA EdRSR 12', 'IMESAPI - SELBA EdRSR 16']);
+// Live status for a list of stations: ?ids=etecnic:23967,electromaps:8017
+// Defaults to the original two IMESAPI stations when no ids are given.
+const {
+  DEFAULT_FAVORITES, getEtecnic, fromEtecnic, getElectromapsStation,
+} = require('../../lib/stations');
 
-exports.handler = async function () {
+const MAX_IDS = 20;
+
+exports.handler = async function (event) {
+  const raw = event.queryStringParameters?.ids;
+  const keys = (raw ? raw.split(',').map(k => k.trim()).filter(Boolean) : DEFAULT_FAVORITES)
+    .slice(0, MAX_IDS);
+
   try {
-    const res = await fetch('https://etecnic.net/api/v1/chargers/index.json', {
-      headers: {
-        Origin: 'https://etecnic.es',
-        Referer: 'https://etecnic.es/mapa-de-recarga/',
-        'User-Agent': 'Mozilla/5.0',
-      },
-      signal: AbortSignal.timeout(10000),
-    });
+    const etecnicIds = new Set(keys.filter(k => k.startsWith('etecnic:')).map(k => k.slice(8)));
+    const etecnic = etecnicIds.size
+      ? new Map((await getEtecnic())
+          .filter(s => etecnicIds.has(String(s.id)))
+          .map(s => [`etecnic:${s.id}`, fromEtecnic(s)]))
+      : new Map();
 
-    if (!res.ok) throw new Error(`Upstream ${res.status}`);
-    const all = await res.json();
-    const filtered = all.filter(s => TARGETS.has(s.name));
+    const stations = await Promise.all(keys.map(async key => {
+      if (etecnic.has(key)) return etecnic.get(key);
+      if (key.startsWith('electromaps:')) {
+        try { return await getElectromapsStation(key.slice(12)); }
+        catch (e) { return { key, error: e.message }; }
+      }
+      return { key, error: 'not found' };
+    }));
 
     return {
       statusCode: 200,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-      body: JSON.stringify(filtered),
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+      body: JSON.stringify(stations),
     };
   } catch (e) {
     return {
