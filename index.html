@@ -722,22 +722,23 @@
 
     function popupHtml(s) {
       const night = lastNearby?.night;
+      const key = favKey(s), fav = isFavorite(key);
+      const pill = 'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5';
+      // The favorite toggle lives in the button row, away from Leaflet's close (×) in the corner
       return `
-        <div class="min-w-[200px] max-w-[260px]">
-          <div class="flex items-start justify-between gap-2">
-            <div class="min-w-0">
-              <p class="text-lg font-bold leading-tight ${priceClass(s)}">${esc(priceLabel(s))}</p>
-              <p class="text-xs text-slate-300 mt-1 break-words">${esc(shortAddress(s))}</p>
-            </div>
-            ${starButton(favKey(s), 'text-sm')}
+        <div class="min-w-[230px] max-w-[280px]">
+          <div class="pr-5">
+            <p class="text-lg font-bold leading-tight ${priceClass(s)}">${esc(priceLabel(s))}</p>
+            <p class="text-xs text-slate-300 mt-1 break-words">${esc(shortAddress(s))}</p>
           </div>
           ${details(s, night, { distance: true }) ? `<p class="text-xs text-slate-400 mt-2">
             <span class="inline-block w-2 h-2 rounded-full mr-1" style="background:${pinColor(s, night)}"></span>${esc(details(s, night, { distance: true }))}</p>` : ''}
           ${s.count > 1 ? `<p class="text-[11px] text-slate-400 mt-1"><i class="fas fa-layer-group mr-1"></i>${s.count} cargadores en este punto</p>` : ''}
-          <div class="flex gap-2 mt-3 text-xs">
-            <a href="${directionsUrl(s)}" target="_blank" rel="noopener"
-              class="bg-blue-600 hover:bg-blue-500 rounded-full px-3 py-1"><i class="fas fa-diamond-turn-right mr-1"></i>Cómo llegar</a>
-            ${s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener" class="bg-slate-700 hover:bg-slate-600 rounded-full px-3 py-1">Electromaps</a>` : ''}
+          <div class="flex flex-wrap gap-2 mt-3 text-xs">
+            <a href="${directionsUrl(s)}" target="_blank" rel="noopener" class="${pill} bg-blue-600 hover:bg-blue-500">
+              <i class="fas fa-diamond-turn-right"></i>Cómo llegar</a>
+            <button onclick="event.stopPropagation(); toggleFavorite('${esc(key)}')" class="${pill} bg-slate-700 hover:bg-slate-600">
+              <i class="${fav ? 'fas' : 'far'} fa-star text-yellow-400"></i>${fav ? 'Quitar' : 'Favorito'}</button>
           </div>
         </div>`;
     }
