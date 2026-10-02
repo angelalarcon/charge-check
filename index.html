@@ -566,6 +566,7 @@
     let nearbyByKey = new Map(), markersByKey = new Map();
     let lastNearby = null;   // { stations, night, zoomedOut? }
     let userPos = null;
+    let loadedBounds = null;   // area covered by the last load; moves inside it need no refetch
 
     function ensureMap() {
       if (map) return;
@@ -584,11 +585,30 @@
         .catch(() => setError('map', 'Could not load the base map'));
       userLayer    = L.layerGroup().addTo(map);
       stationLayer = L.layerGroup().addTo(map);
+
+      // "My location" button under the zoom buttons
+      const LocateControl = L.Control.extend({
+        options: { position: 'topleft' },
+        onAdd() {
+          const bar = L.DomUtil.create('div', 'leaflet-bar');
+          const a = L.DomUtil.create('a', '', bar);
+          a.href = '#';
+          a.title = 'My location';
+          a.setAttribute('role', 'button');
+          a.innerHTML = '<i class="fas fa-location-crosshairs"></i>';
+          L.DomEvent.disableClickPropagation(bar);
+          L.DomEvent.on(a, 'click', e => { L.DomEvent.preventDefault(e); centerOnUser(); });
+          return bar;
+        },
+      });
+      new LocateControl().addTo(map);
       map.setView([FALLBACK_POS.lat, FALLBACK_POS.lon], START_ZOOM);
 
       let moveTimer;
       map.on('moveend', () => {
         clearTimeout(moveTimer);
+        // Zooming in, or a popup nudging the map to fit, stays inside what's loaded
+        if (loadedBounds && map.getZoom() >= MIN_LOAD_ZOOM && loadedBounds.contains(map.getBounds())) return;
         moveTimer = setTimeout(() => withMapLoading(loadNearby), 350);
       });
     }
@@ -715,10 +735,12 @@
         if (m) {
           m.setIcon(pinIcon(s, night));
           m.setZIndexOffset(zIndexOffset);
-          if (m.isPopupOpen()) m.setPopupContent(() => popupHtml(nearbyByKey.get(s.key)));
+          // Re-rendering an open popup makes Leaflet pan again, so only do it on real changes
+          const html = popupHtml(s);
+          if (m.isPopupOpen() && html !== m.popupHtml) m.setPopupContent(() => (m.popupHtml = popupHtml(nearbyByKey.get(s.key))));
         } else {
           m = L.marker([s.lat, s.lon], { icon: pinIcon(s, night), zIndexOffset })
-            .bindPopup(() => popupHtml(nearbyByKey.get(s.key)));
+            .bindPopup(() => (m.popupHtml = popupHtml(nearbyByKey.get(s.key))));
           m.addTo(stationLayer);
           markersByKey.set(s.key, m);
         }
@@ -770,6 +792,7 @@
       const seq = ++nearbySeq;
 
       if (map.getZoom() < MIN_LOAD_ZOOM) {
+        loadedBounds = null;
         lastNearby = { stations: [], night: false, zoomedOut: true };
         nearbyByKey = new Map();
         renderNearbyMarkers();
@@ -777,7 +800,7 @@
         return;
       }
 
-      const b = map.getBounds().pad(0.1);
+      const b = map.getBounds().pad(0.25);
       const ref = userPos || { lat: map.getCenter().lat, lon: map.getCenter().lng };
       const params = new URLSearchParams({
         latNE: b.getNorth().toFixed(5), lngNE: b.getEast().toFixed(5),
@@ -795,6 +818,7 @@
         if (seq !== nearbySeq) return;   // the map moved again meanwhile
 
         lastNearby = { stations, night };
+        loadedBounds = b;
         nearbyByKey = new Map(stations.map(s => [s.key, s]));
         renderNearbyMarkers();
         renderNearbyList();

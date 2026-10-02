@@ -16,42 +16,52 @@ const PRICE_TTL          = 6 * 3600_000;
 const priceCache = new Map();   // electromaps id -> { at, price, priceText }
 
 // The same charger often shows up more than once: Electromaps users add the
-// municipal IMESAPI chargers under their own names a few metres off, and
-// Electromaps lists every charger of a car park separately at the same spot.
-// Fold them into one pin. etecnic wins over Electromaps since it has live status.
-const SAME_AS_ETECNIC_KM     = 0.03;
-const SAME_AS_ELECTROMAPS_KM = 0.01;
+// municipal IMESAPI chargers under their own names tens of metres off, and
+// Electromaps lists every charger of a car park separately. Anything within
+// SAME_SPOT_KM is folded into one pin unless the two listings contradict each other.
+const SAME_SPOT_KM = 0.05;
 
-function absorb(host, dup, { combineSockets }) {
-  host.aliases = [...(host.aliases || []), dup.key];
-  host.url ??= dup.url;
-  if (combineSockets) {
-    host.sockets = [...host.sockets, ...dup.sockets].map((sk, i) => ({ ...sk, n: i + 1 }));
-    host.status  = overallStatus([{ status: host.status }, { status: dup.status }]);
-    host.power   = Math.max(host.power || 0, dup.power || 0) || null;
-    host.count   = (host.count || 1) + 1;
+const hasLive = s => s.live;
+
+// Best data first: etecnic (live), then Electromaps with live connectors, then the rest
+const rank = s => (s.source === 'etecnic' ? 0 : hasLive(s) ? 1 : 2);
+
+function samePin(pin, s) {
+  if (pin.price !== 'unknown' && s.price !== 'unknown' && pin.price !== s.price) return false;
+  // Two live feeds from different networks are two different chargers
+  if (pin.source !== s.source && hasLive(pin) && hasLive(s)) return false;
+  return true;
+}
+
+function absorb(pin, s) {
+  pin.aliases = [...(pin.aliases || []), s.key];
+  if (pin.source === s.source && hasLive(pin) && hasLive(s)) {
+    // Neighbouring chargers of one site (car park, etc.): one pin with all their connectors
+    pin.sockets = [...pin.sockets, ...s.sockets].map((sk, i) => ({ ...sk, n: i + 1 }));
+    pin.status  = overallStatus([{ status: pin.status }, { status: s.status }]);
+    pin.count   = (pin.count || 1) + 1;
+  } else if (!hasLive(pin) && hasLive(s)) {
+    Object.assign(pin, { sockets: s.sockets, status: s.status, live: true });
+  } else if (pin.status === 'unknown' && s.status !== 'unknown') {
+    pin.status = s.status;   // e.g. the map colour of an Electromaps listing without details
   }
-  if (host.price === 'unknown' || (combineSockets && dup.price === 'paid')) {
-    host.price = dup.price;
-    host.priceText = host.priceText || dup.priceText;
-  }
+  if (pin.price === 'unknown') Object.assign(pin, { price: s.price, priceText: s.priceText });
+  pin.priceText ||= s.priceText;
+  pin.address   ||= s.address;
+  pin.url       ??= s.url;
+  pin.power = Math.max(pin.power || 0, s.power || 0) || null;
 }
 
 function unify(stations) {
-  const etecnic = stations.filter(s => s.source === 'etecnic');
-  const electromaps = [];
-  for (const s of stations) {
-    if (s.source !== 'electromaps') continue;
-    const near = (list, km) => list.find(o => distanceKm(o.lat, o.lon, s.lat, s.lon) <= km);
-    const host = near(etecnic, SAME_AS_ETECNIC_KM);
-    if (host) { absorb(host, s, { combineSockets: false }); continue; }
-    const twin = near(electromaps, SAME_AS_ELECTROMAPS_KM);
-    if (twin) { absorb(twin, s, { combineSockets: true }); continue; }
-    electromaps.push(s);
+  const pins = [];
+  for (const s of [...stations].sort((a, b) => rank(a) - rank(b) || a.distance - b.distance)) {
+    const pin = pins.find(p => distanceKm(p.lat, p.lon, s.lat, s.lon) <= SAME_SPOT_KM && samePin(p, s));
+    if (pin) absorb(pin, s);
+    else pins.push({ ...s, sockets: [...s.sockets] });
   }
   // A car park's chargers are numbered ("…PILAR02", "…PILAR06"); name the group without it
-  for (const g of electromaps) if (g.count > 1) g.name = g.name.replace(/[\s_-]*\d+$/, '') || g.name;
-  return [...etecnic, ...electromaps].sort((a, b) => a.distance - b.distance);
+  for (const p of pins) if (p.count > 1) p.name = p.name.replace(/[\s_-]*\d+$/, '') || p.name;
+  return pins.sort((a, b) => a.distance - b.distance);
 }
 
 async function mapLimit(items, limit, fn) {
