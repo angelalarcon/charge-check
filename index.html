@@ -366,6 +366,15 @@
 
     function saveFavorites(list) {
       localStorage.setItem('favorites', JSON.stringify(list));
+      keepStorage();
+    }
+
+    // Ask the browser not to evict our storage (and with it the favorites). Chrome
+    // decides silently but Firefox may prompt, so only ask once the user saves something.
+    function keepStorage() {
+      navigator.storage?.persisted?.()
+        .then(already => already || navigator.storage.persist())
+        .catch(() => {});
     }
 
     function isFavorite(key) {
