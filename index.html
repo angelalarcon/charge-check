@@ -203,6 +203,16 @@
           <i class="fas fa-star text-yellow-400 text-xl"></i>
         </span>Favorito
       </span>
+      <span class="map-only hidden flex items-center gap-2">
+        <span class="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center shrink-0">
+          <i class="fas fa-id-card text-slate-900 text-[11px]"></i>
+        </span>Requiere tarjeta
+      </span>
+      <span class="map-only hidden flex items-center gap-2">
+        <span class="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center shrink-0">
+          <i class="fas fa-mobile-screen text-slate-900 text-[11px]"></i>
+        </span>Requiere app
+      </span>
     </div>
 
     <p class="text-center text-slate-700 text-xs mt-5">
@@ -349,6 +359,133 @@
       const parts = (s.address || '').split(',').map(p => p.trim()).filter(Boolean);
       const cut = parts.findIndex(p => /^\d{5}\b/.test(p));
       return parts.slice(0, Math.min(cut > 0 ? cut : 2, 2)).join(', ') || s.name;
+    }
+
+    // Charging / payment apps, keyed by the lower-cased name the server uses.
+    // None of them publish links to a specific charger, so links open the app itself
+    // (payment) or its store page (download).
+    const APPS = {
+      iberdrola:      { name: 'Iberdrola',            android: 'es.iberdrola.recargaverde', ios: 1318645789 },
+      endesa:         { name: 'Endesa',               android: 'com.enel.mobile.recharge2', ios: 1377291789 },
+      wenea:          { name: 'Wenea',                android: 'es.wenea.app.client',       ios: 1475622185 },
+      waylet:         { name: 'Waylet',               android: 'com.mdf.repsol',            ios: 494847823 },
+      electromaps:    { name: 'Electromaps',          android: 'com.enredats.electromaps',  ios: 606186464 },
+      evcharge:       { name: 'EVcharge (etecnic)',   android: 'com.etecnic.evchargenew',   ios: 6504334922 },
+      'cepsa go':     { name: 'Moeve / Cepsa Gow',    android: 'com.cepsa.xmartplace',      ios: 1570649924 },
+      eranovum:       { name: 'Eranovum',             android: 'com.placetoplug.eranovum',  ios: 1618175895 },
+      interparking:   { name: 'P-App (Interparking)', android: 'ipkhApp.Droid',             ios: 1219330408 },
+      efimob:         { name: 'Efimob',               android: 'com.efimob.android',        ios: 1465215330 },
+    };
+    const appFor = name => APPS[String(name || '').toLowerCase()];
+
+    const isAndroid = () => /Android/i.test(navigator.userAgent);
+    const isIOS     = () => /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const playUrl   = app => `https://play.google.com/store/apps/details?id=${app.android}`;
+    const iosUrl    = app => `https://apps.apple.com/es/app/id${app.ios}`;
+
+    // Open the app: Android intent that launches it or falls back to Google Play;
+    // on iPhone the App Store page, which says "Abrir" if it is installed
+    function openAppUrl(app) {
+      if (isAndroid()) {
+        return `intent:#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;` +
+               `package=${app.android};S.browser_fallback_url=${encodeURIComponent(playUrl(app))};end`;
+      }
+      return isIOS() ? iosUrl(app) : playUrl(app);
+    }
+
+    // Store links to download it: just this phone's store, or both on a computer
+    function downloadLinks(app) {
+      const stores = isAndroid() ? [['Google Play', playUrl(app)]]
+                   : isIOS()     ? [['App Store', iosUrl(app)]]
+                   : [['Google Play', playUrl(app)], ['App Store', iosUrl(app)]];
+      return stores.map(([label, url]) => link(url, stores.length > 1 ? label : 'Descargar')).join(' · ');
+    }
+
+    function link(url, text) {
+      return `<a href="${esc(url)}" target="_blank" rel="noopener" class="underline underline-offset-2 hover:text-white">${esc(text)}<i class="fas fa-arrow-up-right-from-square ml-1 text-[10px]"></i></a>`;
+    }
+
+    // What you need to start a charge: a membership card and/or an app
+    function needsCard(s) {
+      return !!s.access?.cards?.length;
+    }
+
+    // A QR code only opens a web page, so it's not an app you need to install
+    function needsApp(s) {
+      return !!s.access?.app && s.access.app !== 'Código QR';
+    }
+
+    // Where to get each card. "Circutor" / "tarjeta del Ayuntamiento" are what users call
+    // the Santa Cruz municipal card (the chargers are Circutor); cards without a known
+    // request page are listed by name only.
+    const CARD_PROVIDERS = {
+      ctr:   { name: 'Canarias te Recarga', url: 'https://canariasterecarga.com/es/solicitar-tarjeta/' },
+      scmun: { name: 'Ayuntamiento de Santa Cruz (residentes)', url: 'https://sede.santacruzdetenerife.es/sede/tramite/t673' },
+      em:    { name: 'Electromaps (llavero Electropass)', url: 'https://shop.electromaps.com/products/electropass' },
+    };
+    const CARD_SOURCES = {
+      'Canarias te Recarga':          ['ctr'],
+      'Circutor':                     ['scmun'],
+      'Tarjeta del Ayuntamiento':     ['scmun'],
+      'Llavero Electromaps':          ['em'],
+      'Cualquier tarjeta de recarga': ['ctr', 'em', 'scmun'],
+      'Tarjeta del operador':         [{ name: 'El operador del cargador' }],
+    };
+
+    function cardProviders(s) {
+      const seen = new Set();
+      return s.access.cards
+        .flatMap(c => (CARD_SOURCES[c] || [{ name: c }]).map(p => typeof p === 'string' ? CARD_PROVIDERS[p] : p))
+        .filter(p => !seen.has(p.name) && seen.add(p.name));
+    }
+
+    function accessIcons(s) {
+      return [
+        needsCard(s) ? '<i class="fas fa-id-card" title="Requiere tarjeta"></i>' : '',
+        needsApp(s)  ? '<i class="fas fa-mobile-screen" title="Requiere app"></i>' : '',
+      ].filter(Boolean).join('');
+    }
+
+    // Warning banner: without the card / app you can't charge. Hover (or tap, via
+    // focus) reveals who issues the cards and which app, with links to get them.
+    // Chargers that take either show one "tarjeta o app" banner, not two.
+    function requirementBanner(s) {
+      const card = needsCard(s), app = needsApp(s);
+      if (!card && !app) return '';
+      const title = card && app ? 'Requiere tarjeta o app' : card ? 'Requiere tarjeta' : 'Requiere app';
+      const icon  = card ? 'fa-id-card' : 'fa-mobile-screen';
+      const items = [
+        ...(card ? cardProviders(s).map(p => `<li><i class="fas fa-id-card w-4 mr-1"></i>${p.url ? link(p.url, p.name) : esc(p.name)}</li>`) : []),
+        ...(app ? [(() => {
+          const a = appFor(s.access.app);
+          const name = a ? a.name : s.access.app === 'App' ? 'La app del operador' : `App ${s.access.app}`;
+          return `<li><i class="fas fa-mobile-screen w-4 mr-1"></i>${esc(name)}${a ? `: ${downloadLinks(a)}` : ''}</li>`;
+        })()] : []),
+      ].join('');
+      return `
+        <div tabindex="0" class="group mt-2 rounded-lg bg-amber-500/15 border border-amber-400/50 px-3 py-2 text-amber-200 cursor-help outline-none">
+          <p class="flex items-center gap-2 text-sm font-semibold"><i class="fas ${icon}"></i>${title}<i class="fas fa-circle-info ml-auto text-amber-300/80"></i></p>
+          <ul class="hidden group-hover:block group-focus-within:block mt-1.5 space-y-1 text-xs text-amber-100">${items}</ul>
+        </div>`;
+    }
+
+    function qrHtml(s) {
+      return s.access?.app === 'Código QR'
+        ? '<p class="text-xs text-slate-300 mt-2 flex items-center gap-1.5"><i class="fas fa-qrcode w-4 text-center text-sky-300"></i>Se activa con código QR</p>'
+        : '';
+    }
+
+    // "€ Iberdrola": opens the app you pay with. Skipped when the banner already
+    // names that same app.
+    function paymentHtml(s) {
+      if (!s.payment) return '';
+      const app = appFor(s.payment.app);
+      if (app && needsApp(s) && appFor(s.access.app) === app) return '';
+      const label = `<i class="fas fa-euro-sign"></i>${esc(app ? app.name : s.payment.name)}`;
+      const cls = 'inline-flex items-center gap-1.5 text-sm font-semibold text-green-400';
+      return app
+        ? `<a href="${esc(openAppUrl(app))}" target="_blank" rel="noopener" class="${cls} hover:text-green-300 underline underline-offset-2">${label}</a>`
+        : `<span class="${cls}">${label}</span>`;
     }
 
     function details(s, night, { distance = false } = {}) {
@@ -734,6 +871,9 @@
           ${details(s, night, { distance: true }) ? `<p class="text-xs text-slate-400 mt-2">
             <span class="inline-block w-2 h-2 rounded-full mr-1" style="background:${pinColor(s, night)}"></span>${esc(details(s, night, { distance: true }))}</p>` : ''}
           ${s.count > 1 ? `<p class="text-[11px] text-slate-400 mt-1"><i class="fas fa-layer-group mr-1"></i>${s.count} cargadores en este punto</p>` : ''}
+          ${requirementBanner(s)}
+          ${qrHtml(s)}
+          ${paymentHtml(s) ? `<p class="mt-2">${paymentHtml(s)}</p>` : ''}
           <div class="flex flex-wrap gap-2 mt-3 text-xs">
             <a href="${directionsUrl(s)}" target="_blank" rel="noopener" class="${pill} bg-blue-600 hover:bg-blue-500">
               <i class="fas fa-diamond-turn-right"></i>Cómo llegar</a>
@@ -754,22 +894,33 @@
       const state = pinState(s, night);
       const { color, fg } = PIN[state];
       const outline = state === 'night' ? '#64748b' : '#0f172a';
+      // Inside the pin: what you need to start a charge (card and/or app); otherwise
+      // € on paid dots. The colour already says free / paid / busy.
+      const glyphs = [needsCard(s) && 'fa-id-card', needsApp(s) && 'fa-mobile-screen'].filter(Boolean);
+      if (!glyphs.length && s.price === 'paid') glyphs.push('fa-euro-sign');
+      const icons = (px, extra = '') => glyphs
+        .map(g => `<i class="fas ${g}" style="font-size:${px}px;color:${fg};${extra}"></i>`).join('');
+
       if (isFavorite(favKey(s))) {
+        const two = glyphs.length > 1;
+        const inner = glyphs.length && !glyphs.includes('fa-euro-sign')
+          ? `<span style="position:absolute;left:50%;top:57%;transform:translate(-50%,-50%);display:flex;gap:1px">${icons(two ? 7 : 10)}</span>` : '';
+        const size = two ? 36 : 32;
         return L.divIcon({
-          className: '', iconSize: [28, 28], popupAnchor: [0, -12],
-          html: `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center">
-                   <i class="fas fa-star" style="font-size:26px;color:${color};-webkit-text-stroke:1.5px ${outline};filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))"></i>
+          className: '', iconSize: [size, size], popupAnchor: [0, -size / 2 + 2],
+          html: `<div style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center">
+                   <i class="fas fa-star" style="font-size:${size - 2}px;color:${color};-webkit-text-stroke:1.5px ${outline};filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))"></i>
+                   ${inner}
                  </div>`,
         });
       }
       const open = PIN_ORDER[state] === 3;
-      const size = open ? 20 : 15;
-      const euro = s.price === 'paid'
-        ? `<i class="fas fa-euro-sign" style="font-size:${Math.round(size * 0.55)}px;color:${fg}"></i>` : '';
+      const size = glyphs.length > 1 ? 24 : open ? 20 : glyphs.length ? 18 : 15;
+      const px = glyphs.length > 1 ? 8 : Math.round(size * (glyphs[0] === 'fa-euro-sign' ? 0.55 : 0.5));
       return L.divIcon({
         className: '', iconSize: [size, size], popupAnchor: [0, -size / 2],
-        html: `<div style="width:100%;height:100%;border-radius:9999px;display:flex;align-items:center;justify-content:center;
-                 background:${color};border:1.5px solid ${outline};opacity:${open ? 1 : 0.9}">${euro}</div>`,
+        html: `<div style="width:100%;height:100%;border-radius:9999px;display:flex;align-items:center;justify-content:center;gap:1px;
+                 background:${color};border:1.5px solid ${outline};opacity:${open ? 1 : 0.9}">${icons(px)}</div>`,
       });
     }
 
@@ -815,10 +966,11 @@
         <div onclick="focusStation('${esc(s.key)}')"
           class="bg-slate-800/70 border border-slate-700/40 hover:border-green-500/30 rounded-xl px-4 py-3 flex items-center gap-3 cursor-pointer transition-all">
           <span class="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style="background:${pinColor(s, night)}">
-            <i class="fas ${isFavorite(favKey(s)) ? 'fa-star' : s.price === 'paid' ? 'fa-euro-sign' : 'fa-plug'} text-xs" style="color:${PIN[pinState(s, night)].fg}"></i>
+            <i class="fas ${isFavorite(favKey(s)) ? 'fa-star' : needsCard(s) ? 'fa-id-card' : needsApp(s) ? 'fa-mobile-screen' : s.price === 'paid' ? 'fa-euro-sign' : 'fa-plug'} text-xs" style="color:${PIN[pinState(s, night)].fg}"></i>
           </span>
           <div class="min-w-0 flex-1">
-            <p class="text-lg font-bold leading-tight truncate ${priceClass(s)}">${esc(priceLabel(s))}</p>
+            <p class="text-lg font-bold leading-tight truncate ${priceClass(s)}">${esc(priceLabel(s))}${accessIcons(s) ?
+              `<span class="ml-2 inline-flex gap-1.5 align-middle text-sm text-sky-300">${accessIcons(s)}</span>` : ''}</p>
             <p class="text-xs text-slate-400 truncate mt-0.5">
               ${esc([shortAddress(s), details(s, night)].filter(Boolean).join(' · '))}
             </p>

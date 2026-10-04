@@ -13,7 +13,7 @@ const MAX_RESULTS = 300;
 const DETAIL_LIMIT       = 80;
 const DETAIL_CONCURRENCY = 10;
 const PRICE_TTL          = 6 * 3600_000;
-const priceCache = new Map();   // electromaps id -> { at, price, priceText }
+const priceCache = new Map();   // electromaps id -> { at, price, priceText, payment, access }
 
 // The same charger often shows up more than once: Electromaps users add the
 // municipal IMESAPI chargers under their own names tens of metres off, and
@@ -47,6 +47,13 @@ function absorb(pin, s) {
   }
   if (pin.price === 'unknown') Object.assign(pin, { price: s.price, priceText: s.priceText });
   pin.priceText ||= s.priceText;
+  pin.payment   ||= s.payment;
+  if (s.access) {
+    // Different listings of one charger may name different cards; keep them all
+    const cards = [...new Set([...(pin.access?.cards || []), ...(s.access.cards || [])])];
+    pin.access = { ...(cards.length && { cards }), app: pin.access?.app || s.access.app };
+    if (!pin.access.app) delete pin.access.app;
+  }
   pin.address   ||= s.address;
   pin.url       ??= s.url;
   pin.power = Math.max(pin.power || 0, s.power || 0) || null;
@@ -119,13 +126,13 @@ exports.handler = async function (event) {
   for (const s of stations.filter(s => s.source === 'electromaps').slice(0, DETAIL_LIMIT)) {
     const cached = priceCache.get(s.id);
     const fresh = cached && now - cached.at < PRICE_TTL;
-    if (fresh) Object.assign(s, { price: cached.price, priceText: cached.priceText });
+    if (fresh) Object.assign(s, { price: cached.price, priceText: cached.priceText, payment: cached.payment, access: cached.access });
     if (!fresh || s.status === 'available') toDetail.push(s);
   }
   await mapLimit(toDetail, DETAIL_CONCURRENCY, async s => {
     try {
       const d = await getElectromapsStation(s.id);
-      priceCache.set(s.id, { at: Date.now(), price: d.price, priceText: d.priceText });
+      priceCache.set(s.id, { at: Date.now(), price: d.price, priceText: d.priceText, payment: d.payment, access: d.access });
       // Keep the map's overall colour if the connector list is less informative
       Object.assign(s, d, { status: d.status === 'unknown' ? s.status : d.status, distance: s.distance });
     } catch {}
