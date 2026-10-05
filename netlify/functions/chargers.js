@@ -1,7 +1,7 @@
 // Live status for a list of stations: ?ids=etecnic:23967,electromaps:8017
 // Defaults to the original two IMESAPI stations when no ids are given.
 const {
-  DEFAULT_FAVORITES, getEtecnic, fromEtecnic, getElectromapsStation,
+  DEFAULT_FAVORITES, getEtecnic, fromEtecnic, getElectromapsStation, applyResearch,
 } = require('../../lib/stations');
 
 const MAX_IDS = 20;
@@ -27,6 +27,7 @@ exports.handler = async function (event) {
       }
       return { key, error: 'not found' };
     }));
+    stations.filter(s => !s.error).forEach(applyResearch);
 
     return {
       statusCode: 200,

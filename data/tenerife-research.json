@@ -1,0 +1,489 @@
+{
+ "about": "Researched data for Tenerife chargers whose price is unknown in the live sources. Only fills unknown fields. Generated 2026-10-04 from: Canarias te Recarga public map (canariasterecarga.com/es/mapa), OpenStreetMap (amenity=charging_station), and chains whose known Tenerife chargers all agree (Lidl, HiperDino, ALDI, Mercadona, DISA, Repsol, BP, McDonald's, Burger King).",
+ "generated": "2026-10-04",
+ "stations": {
+  "electromaps:186341": {
+   "price": "paid",
+   "priceText": "0,38 €/kWh (Super)",
+   "access": {
+    "cards": [
+     "Canarias te Recarga"
+    ]
+   },
+   "source": "Canarias te Recarga",
+   "url": "https://canariasterecarga.com/es/p69151",
+   "note": "Punto «Puerto Deportivo Los Gigantes» de la red Canarias te Recarga"
+  },
+  "electromaps:435579": {
+   "price": "paid",
+   "priceText": "0,28 €/kWh (Mini)",
+   "access": {
+    "cards": [
+     "Canarias te Recarga"
+    ]
+   },
+   "source": "Canarias te Recarga",
+   "url": "https://canariasterecarga.com/es/p69200",
+   "note": "Punto «Hotel TUI Blue Los Gigantes» de la red Canarias te Recarga"
+  },
+  "electromaps:241721": {
+   "price": "free",
+   "access": {
+    "cards": [
+     "Canarias te Recarga"
+    ]
+   },
+   "source": "Canarias te Recarga",
+   "url": "https://canariasterecarga.com/es/p59178",
+   "note": "Punto «Erjos» de la red Canarias te Recarga"
+  },
+  "electromaps:92323": {
+   "price": "free",
+   "access": {
+    "cards": [
+     "Canarias te Recarga"
+    ]
+   },
+   "source": "Canarias te Recarga",
+   "url": "https://canariasterecarga.com/es/mapa/",
+   "note": "Punto «Parking Playa San Juan» de la red Canarias te Recarga"
+  },
+  "electromaps:222049": {
+   "price": "free",
+   "access": {
+    "cards": [
+     "Canarias te Recarga"
+    ]
+   },
+   "source": "Canarias te Recarga",
+   "url": "https://canariasterecarga.com/es/p00248",
+   "note": "Punto «Leroy Merlín, Adeje» de la red Canarias te Recarga"
+  },
+  "electromaps:400873": {
+   "price": "free",
+   "estimated": true,
+   "source": "otros Lidl de Tenerife",
+   "url": "https://empresa.lidl.es/sostenibilidad/bueno-para-el-planeta/proteger-el-clima/construccion-y-logistica-sostenible/puntos-de-recarga",
+   "note": "Estimado: 9 Lidl de Tenerife con datos son gratis. Lidl: recarga gratuita mientras compras, sin tarjeta"
+  },
+  "electromaps:107128": {
+   "price": "free",
+   "access": {
+    "cards": [
+     "Canarias te Recarga"
+    ]
+   },
+   "source": "Canarias te Recarga",
+   "url": "https://canariasterecarga.com/es/p67143",
+   "note": "Punto «Iberostar Bouganville» de la red Canarias te Recarga"
+  },
+  "electromaps:407327": {
+   "price": "paid",
+   "priceText": "0,28 €/kWh (Mini)",
+   "access": {
+    "cards": [
+     "Canarias te Recarga"
+    ]
+   },
+   "source": "Canarias te Recarga",
+   "url": "https://canariasterecarga.com/es/p67187",
+   "note": "Punto «Parking Salytien» de la red Canarias te Recarga"
+  },
+  "electromaps:550824": {
+   "price": "paid",
+   "priceText": "0,45 €/kWh (Mega)",
+   "access": {
+    "cards": [
+     "Canarias te Recarga"
+    ]
+   },
+   "source": "Canarias te Recarga",
+   "url": "https://canariasterecarga.com/es/p68006",
+   "note": "Punto «C.C. Galeón Outlet» de la red Canarias te Recarga"
+  },
+  "electromaps:435897": {
+   "price": "paid",
+   "priceText": "0,28 €/kWh (Mini)",
+   "access": {
+    "cards": [
+     "Canarias te Recarga"
+    ]
+   },
+   "source": "Canarias te Recarga",
+   "url": "https://canariasterecarga.com/es/p67179",
+   "note": "Punto «CC Ferrari» de la red Canarias te Recarga"
+  },
+  "electromaps:437759": {
+   "price": "paid",
+   "estimated": true,
+   "source": "otros Burger King de Tenerife",
+   "url": null,
+   "note": "Estimado: 3 Burger King de Tenerife con datos son de pago",
+   "tariff": {
+    "kind": "estimate",
+    "range": [
+     0.58,
+     0.83
+    ]
+   }
+  },
+  "electromaps:397497": {
+   "price": "paid",
+   "priceText": "0,38 €/kWh (Super)",
+   "access": {
+    "cards": [
+     "Canarias te Recarga"
+    ]
+   },
+   "source": "Canarias te Recarga",
+   "url": "https://canariasterecarga.com/es/p66087",
+   "note": "Punto «Puerto de Los Cristianos - Atraque Fred Olsen» de la red Canarias te Recarga"
+  },
+  "electromaps:147949": {
+   "price": "paid",
+   "access": {
+    "app": "Iberdrola"
+   },
+   "payment": {
+    "app": "iberdrola"
+   },
+   "estimated": true,
+   "source": "otros Mercadona de Tenerife",
+   "url": null,
+   "note": "Estimado: 25 Mercadona de Tenerife con datos son de pago",
+   "tariff": {
+    "kind": "estimate",
+    "range": [
+     0.21,
+     0.25
+    ]
+   }
+  },
+  "electromaps:326088": {
+   "price": "free",
+   "estimated": true,
+   "source": "otros HiperDino de Tenerife",
+   "url": null,
+   "note": "Estimado: 8 HiperDino de Tenerife con datos son gratis"
+  },
+  "electromaps:103282": {
+   "price": "free",
+   "access": {
+    "cards": [
+     "Canarias te Recarga"
+    ]
+   },
+   "source": "Canarias te Recarga",
+   "url": "https://canariasterecarga.com/es/p54011",
+   "note": "Punto «Teleférico del Teide» de la red Canarias te Recarga"
+  },
+  "electromaps:221272": {
+   "price": "free",
+   "estimated": true,
+   "source": "otros Lidl de Tenerife",
+   "url": "https://empresa.lidl.es/sostenibilidad/bueno-para-el-planeta/proteger-el-clima/construccion-y-logistica-sostenible/puntos-de-recarga",
+   "note": "Estimado: 9 Lidl de Tenerife con datos son gratis. Lidl: recarga gratuita mientras compras, sin tarjeta"
+  },
+  "electromaps:550823": {
+   "price": "free",
+   "access": {
+    "cards": [
+     "Canarias te Recarga"
+    ]
+   },
+   "source": "Canarias te Recarga",
+   "url": "https://canariasterecarga.com/es/p56142",
+   "note": "Punto «C.C. Mencey Bencomo» de la red Canarias te Recarga"
+  },
+  "electromaps:460919": {
+   "price": "paid",
+   "priceText": "0,38 €/kWh (Super)",
+   "access": {
+    "cards": [
+     "Canarias te Recarga"
+    ]
+   },
+   "source": "Canarias te Recarga",
+   "url": "https://canariasterecarga.com/es/p00344",
+   "note": "Punto «Los Realejos - Calle El Colegio» de la red Canarias te Recarga"
+  },
+  "electromaps:319185": {
+   "price": "free",
+   "estimated": true,
+   "source": "otros ALDI de Tenerife",
+   "url": null,
+   "note": "Estimado: 6 ALDI de Tenerife con datos son gratis"
+  },
+  "electromaps:324101": {
+   "price": "free",
+   "source": "OpenStreetMap",
+   "url": "https://www.openstreetmap.org/way/1444441651",
+   "note": ""
+  },
+  "electromaps:734953": {
+   "price": "paid",
+   "access": {
+    "app": "Waylet"
+   },
+   "payment": {
+    "app": "waylet"
+   },
+   "estimated": true,
+   "source": "otros Repsol de Tenerife",
+   "url": null,
+   "note": "Estimado: 2 Repsol de Tenerife con datos son de pago",
+   "tariff": {
+    "kind": "estimate",
+    "range": [
+     0.39,
+     0.42
+    ]
+   }
+  },
+  "electromaps:368197": {
+   "price": "free",
+   "estimated": true,
+   "source": "otros HiperDino de Tenerife",
+   "url": null,
+   "note": "Estimado: 8 HiperDino de Tenerife con datos son gratis"
+  },
+  "electromaps:80393": {
+   "price": "paid",
+   "priceText": "1ª hora gratis, luego 2 €/hora",
+   "access": {
+    "cards": [
+     "Canarias te Recarga"
+    ]
+   },
+   "source": "Canarias te Recarga",
+   "url": "https://canariasterecarga.com/es/p53169",
+   "note": "Punto «Parque El Montillo» de la red Canarias te Recarga"
+  },
+  "electromaps:322995": {
+   "price": "free",
+   "estimated": true,
+   "source": "otros Lidl de Tenerife",
+   "url": "https://empresa.lidl.es/sostenibilidad/bueno-para-el-planeta/proteger-el-clima/construccion-y-logistica-sostenible/puntos-de-recarga",
+   "note": "Estimado: 9 Lidl de Tenerife con datos son gratis. Lidl: recarga gratuita mientras compras, sin tarjeta"
+  },
+  "electromaps:854135": {
+   "price": "paid",
+   "estimated": true,
+   "source": "otros BP de Tenerife",
+   "url": null,
+   "note": "Estimado: 5 BP de Tenerife con datos son de pago",
+   "tariff": {
+    "kind": "estimate",
+    "range": [
+     0.4,
+     0.83
+    ]
+   }
+  },
+  "electromaps:457216": {
+   "price": "paid",
+   "estimated": true,
+   "source": "otros McDonald's de Tenerife",
+   "url": null,
+   "note": "Estimado: 4 McDonald's de Tenerife con datos son de pago",
+   "tariff": {
+    "kind": "estimate",
+    "range": [
+     0.58,
+     0.58
+    ]
+   }
+  },
+  "electromaps:323591": {
+   "price": "paid",
+   "payment": {
+    "name": "DISA"
+   },
+   "estimated": true,
+   "source": "otros DISA de Tenerife",
+   "url": null,
+   "note": "Estimado: 4 DISA de Tenerife con datos son de pago",
+   "tariff": {
+    "kind": "estimate",
+    "range": [
+     0.37,
+     0.62
+    ]
+   }
+  },
+  "electromaps:807290": {
+   "price": "paid",
+   "access": {
+    "app": "Waylet"
+   },
+   "payment": {
+    "app": "waylet"
+   },
+   "estimated": true,
+   "source": "otros Repsol de Tenerife",
+   "url": null,
+   "note": "Estimado: 2 Repsol de Tenerife con datos son de pago",
+   "tariff": {
+    "kind": "estimate",
+    "range": [
+     0.39,
+     0.42
+    ]
+   }
+  },
+  "electromaps:582649": {
+   "price": "paid",
+   "priceText": "0,38 €/kWh (Super)",
+   "access": {
+    "cards": [
+     "Canarias te Recarga"
+    ]
+   },
+   "source": "Canarias te Recarga",
+   "url": "https://canariasterecarga.com/es/p00347",
+   "note": "Punto «Avenida Los Majuelos» de la red Canarias te Recarga"
+  },
+  "electromaps:700512": {
+   "price": "paid",
+   "payment": {
+    "name": "DISA"
+   },
+   "estimated": true,
+   "source": "otros DISA de Tenerife",
+   "url": null,
+   "note": "Estimado: 4 DISA de Tenerife con datos son de pago",
+   "tariff": {
+    "kind": "estimate",
+    "range": [
+     0.37,
+     0.62
+    ]
+   }
+  },
+  "electromaps:111462": {
+   "price": "free",
+   "access": {
+    "cards": [
+     "Canarias te Recarga"
+    ]
+   },
+   "source": "Canarias te Recarga",
+   "url": "https://canariasterecarga.com/es/mapa/",
+   "note": "Punto «Av. Luis Celso García Guadalupe Añaza» de la red Canarias te Recarga"
+  },
+  "electromaps:420318": {
+   "price": "free",
+   "access": {
+    "cards": [
+     "Canarias te Recarga"
+    ]
+   },
+   "source": "Canarias te Recarga",
+   "url": "https://canariasterecarga.com/es/p61195",
+   "note": "Punto «Porsche Santa Cruz de Tenerife» de la red Canarias te Recarga"
+  },
+  "electromaps:574856": {
+   "price": "free",
+   "access": {
+    "cards": [
+     "Canarias te Recarga"
+    ]
+   },
+   "source": "Canarias te Recarga",
+   "url": "https://canariasterecarga.com/es/mapa/",
+   "note": "Punto «Calle Sargento Provisional» de la red Canarias te Recarga"
+  },
+  "electromaps:145896": {
+   "price": "paid",
+   "payment": {
+    "name": "DISA"
+   },
+   "estimated": true,
+   "source": "otros DISA de Tenerife",
+   "url": null,
+   "note": "Estimado: 4 DISA de Tenerife con datos son de pago",
+   "tariff": {
+    "kind": "estimate",
+    "range": [
+     0.37,
+     0.62
+    ]
+   }
+  },
+  "electromaps:435581": {
+   "price": "paid",
+   "priceText": "0,28 €/kWh (Mini)",
+   "access": {
+    "cards": [
+     "Canarias te Recarga"
+    ]
+   },
+   "source": "Canarias te Recarga",
+   "url": "https://canariasterecarga.com/es/p62204",
+   "note": "Punto «Club de Tenis de Tenerife» de la red Canarias te Recarga"
+  },
+  "electromaps:576511": {
+   "price": "paid",
+   "payment": {
+    "name": "Disa."
+   },
+   "source": "OpenStreetMap",
+   "url": "https://www.openstreetmap.org/node/13206673080",
+   "note": "Operador: Disa."
+  },
+  "electromaps:772589": {
+   "price": "paid",
+   "access": {
+    "app": "Waylet"
+   },
+   "payment": {
+    "app": "waylet"
+   },
+   "estimated": true,
+   "source": "otros Repsol de Tenerife",
+   "url": null,
+   "note": "Estimado: 2 Repsol de Tenerife con datos son de pago",
+   "tariff": {
+    "kind": "estimate",
+    "range": [
+     0.39,
+     0.42
+    ]
+   }
+  },
+  "electromaps:107119": {
+   "price": "paid",
+   "priceText": "0,28 €/kWh (Mini)",
+   "access": {
+    "cards": [
+     "Canarias te Recarga"
+    ]
+   },
+   "source": "Canarias te Recarga",
+   "url": "https://canariasterecarga.com/es/p61085",
+   "note": "Punto «Atraque Fred Olsen Santa Cruz de Tenerife» de la red Canarias te Recarga"
+  },
+  "etecnic:1008": {
+   "price": "free",
+   "access": {
+    "cards": [
+     "Canarias te Recarga"
+    ]
+   },
+   "source": "Canarias te Recarga",
+   "url": "https://canariasterecarga.com/es/p65225",
+   "note": "Punto «ITER (Instituto tecnológico y de energías renovables)» de la red Canarias te Recarga"
+  },
+  "etecnic:1009": {
+   "price": "free",
+   "access": {
+    "cards": [
+     "Canarias te Recarga"
+    ]
+   },
+   "source": "Canarias te Recarga",
+   "url": "https://canariasterecarga.com/es/p65225",
+   "note": "Punto «ITER (Instituto tecnológico y de energías renovables)» de la red Canarias te Recarga"
+  }
+ }
+}

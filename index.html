@@ -306,6 +306,12 @@
       return `https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lon}`;
     }
 
+    // Google Maps opens the Street View panorama closest to these coordinates. Not
+    // verified per charger: it can land on a nearby street, a tunnel or an indoor photo.
+    function streetViewUrl(s) {
+      return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${s.lat},${s.lon}`;
+    }
+
     function freeSummary(s, night) {
       const st = effective(s, s.status, night);
       if (st === 'night') return cfg(st).label;
@@ -344,10 +350,55 @@
     }
 
     // The price is the headline of a charger in the list and popups
+    // Priority for paid chargers: the operator's official tariff (current day/night
+    // rate), then the price users wrote down, then Electromaps' "from" price
     function priceLabel(s) {
       if (s.price === 'free') return 'Gratis';
-      if (s.price === 'paid') return s.priceText ? s.priceText.replace(/kwh/i, 'kWh') : 'De pago';
-      return 'Precio desconocido';
+      if (s.price !== 'paid') return 'Precio desconocido';
+      const t = s.tariff;
+      if (t?.kind === 'official') return eurKwh(t[isNightRate(t) ? 'night' : 'day']);
+      if (s.priceText) return tidyPrice(s.priceText);
+      if (t?.kind === 'from') return `Desde ${eurKwh([t.value, t.value])}`;
+      if (t?.kind === 'estimate') return `≈ ${eurKwh(t.range)}`;
+      return 'De pago';
+    }
+
+    // Users write prices any way: "0.25", "0,25€/kwh", "0.40 €/KWh" → "0,25 €/kWh"
+    function tidyPrice(text) {
+      let t = text.trim().replace(/(\d)\.(\d)/g, '$1,$2');
+      if (/^\d+,\d+$/.test(t)) return `${t} €/kWh`;
+      return t.replace(/\s*€\s*\/\s*kw\s*h?\b/i, ' €/kWh');
+    }
+
+    function eurKwh([lo, hi]) {
+      const f = n => n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      return `${lo === hi ? f(lo) : `${f(lo)}–${f(hi)}`} €/kWh`;
+    }
+
+    // Night rate if a charge started now would fall in the operator's night hours
+    function isNightRate(t) {
+      const hour = Number(new Intl.DateTimeFormat('es-ES', { timeZone: t.tz, hour: 'numeric', hourCycle: 'h23' }).format(new Date()));
+      const [from, to] = t.nightHours;
+      return hour >= from || hour < to;
+    }
+
+    // Small print under the price in the popup
+    function priceNote(s) {
+      if (s.research) {
+        const r = s.research;
+        const src = r.url
+          ? `<a href="${esc(r.url)}" target="_blank" rel="noopener" class="underline underline-offset-2 hover:text-white">${esc(r.source)}<i class="fas fa-arrow-up-right-from-square ml-1 text-[9px]"></i></a>`
+          : esc(r.source);
+        return `<p class="text-[11px] text-slate-400 mt-1">${r.note ? `${esc(r.note)} · ` : ''}Fuente: ${src}</p>`;
+      }
+      const t = s.tariff;
+      if (s.price !== 'paid' || !t) return '';
+      const note = t.kind === 'official'
+        ? `Tarifa oficial ${t.operator === 'endesa' ? 'Endesa' : t.operator}, pago por uso: día ${eurKwh(t.day)} · noche (${t.nightHours[0]}–${t.nightHours[1]} h) ${eurKwh(t.night)}`
+        : !s.priceText
+          ? 'Precio pagando con Electromaps; con la app del operador puede ser distinto'
+          : '';
+      return note ? `<p class="text-[11px] text-slate-400 mt-1">${esc(note)}</p>` : '';
     }
 
     function priceClass(s) {
@@ -677,6 +728,10 @@
               <p class="text-xs text-slate-400 mt-1">${esc(shortAddress(station))}</p>
             </div>
             <div class="flex items-center shrink-0">
+              <a href="${streetViewUrl(station)}" target="_blank" rel="noopener" title="Ver en Street View"
+                class="w-8 h-8 rounded-full flex items-center justify-center text-slate-500 hover:text-white hover:bg-slate-700/60 transition-all">
+                <i class="fas fa-street-view"></i>
+              </a>
               <a href="${directionsUrl(station)}" target="_blank" rel="noopener" title="Cómo llegar"
                 class="w-8 h-8 rounded-full flex items-center justify-center text-slate-500 hover:text-white hover:bg-slate-700/60 transition-all">
                 <i class="fas fa-diamond-turn-right"></i>
@@ -866,6 +921,7 @@
         <div>
           <div class="pr-5">
             <p class="text-lg font-bold leading-tight ${priceClass(s)}">${esc(priceLabel(s))}</p>
+            ${priceNote(s)}
             <p class="text-xs text-slate-300 mt-1 break-words">${esc(shortAddress(s))}</p>
           </div>
           ${details(s, night, { distance: true }) ? `<p class="text-xs text-slate-400 mt-2">
@@ -877,6 +933,8 @@
           <div class="flex flex-wrap gap-2 mt-3 text-xs">
             <a href="${directionsUrl(s)}" target="_blank" rel="noopener" class="${pill} bg-blue-600 hover:bg-blue-500">
               <i class="fas fa-diamond-turn-right"></i>Cómo llegar</a>
+            <a href="${streetViewUrl(s)}" target="_blank" rel="noopener" class="${pill} bg-slate-700 hover:bg-slate-600">
+              <i class="fas fa-street-view"></i>Street View</a>
             <button onclick="event.stopPropagation(); toggleFavorite('${esc(key)}')" class="${pill} bg-slate-700 hover:bg-slate-600">
               <i class="${fav ? 'fas' : 'far'} fa-star text-yellow-400"></i>${fav ? 'Quitar' : 'Favorito'}</button>
           </div>

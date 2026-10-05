@@ -2,7 +2,7 @@
 //   ?latNE=28.48&lngNE=-16.24&latSW=28.46&lngSW=-16.26&lat=28.47&lon=-16.25
 // lat/lon is the reference point (the user, or the map centre) for distance and ordering.
 const {
-  distanceKm, overallStatus, getEtecnic, fromEtecnic, getElectromapsInBounds, getElectromapsStation,
+  distanceKm, overallStatus, getEtecnic, fromEtecnic, getElectromapsInBounds, getElectromapsStation, applyResearch,
 } = require('../../lib/stations');
 
 const MAX_SPAN    = 1.5;   // degrees; the page stops asking below zoom 11
@@ -13,7 +13,7 @@ const MAX_RESULTS = 300;
 const DETAIL_LIMIT       = 80;
 const DETAIL_CONCURRENCY = 10;
 const PRICE_TTL          = 6 * 3600_000;
-const priceCache = new Map();   // electromaps id -> { at, price, priceText, payment, access }
+const priceCache = new Map();   // electromaps id -> { at, price, priceText, payment, tariff, access }
 
 // The same charger often shows up more than once: Electromaps users add the
 // municipal IMESAPI chargers under their own names tens of metres off, and
@@ -48,6 +48,13 @@ function absorb(pin, s) {
   if (pin.price === 'unknown') Object.assign(pin, { price: s.price, priceText: s.priceText });
   pin.priceText ||= s.priceText;
   pin.payment   ||= s.payment;
+  // An official tariff beats Electromaps' "from" price; two official ones widen the range
+  const t = pin.tariff, u = s.tariff;
+  if (u && (!t || (t.kind !== 'official' && u.kind === 'official'))) pin.tariff = u;
+  else if (t?.kind === 'official' && u?.kind === 'official' && t.operator === u.operator) {
+    const widen = (a, b) => [Math.min(a[0], b[0]), Math.max(a[1], b[1])];
+    pin.tariff = { ...t, day: widen(t.day, u.day), night: widen(t.night, u.night) };
+  }
   if (s.access) {
     // Different listings of one charger may name different cards; keep them all
     const cards = [...new Set([...(pin.access?.cards || []), ...(s.access.cards || [])])];
@@ -126,17 +133,23 @@ exports.handler = async function (event) {
   for (const s of stations.filter(s => s.source === 'electromaps').slice(0, DETAIL_LIMIT)) {
     const cached = priceCache.get(s.id);
     const fresh = cached && now - cached.at < PRICE_TTL;
-    if (fresh) Object.assign(s, { price: cached.price, priceText: cached.priceText, payment: cached.payment, access: cached.access });
+    if (fresh) {
+      const { price, priceText, payment, tariff, access } = cached;
+      Object.assign(s, { price, priceText, payment, tariff, access });
+    }
     if (!fresh || s.status === 'available') toDetail.push(s);
   }
   await mapLimit(toDetail, DETAIL_CONCURRENCY, async s => {
     try {
       const d = await getElectromapsStation(s.id);
-      priceCache.set(s.id, { at: Date.now(), price: d.price, priceText: d.priceText, payment: d.payment, access: d.access });
+      const { price, priceText, payment, tariff, access } = d;
+      priceCache.set(s.id, { at: Date.now(), price, priceText, payment, tariff, access });
       // Keep the map's overall colour if the connector list is less informative
       Object.assign(s, d, { status: d.status === 'unknown' ? s.status : d.status, distance: s.distance });
     } catch {}
   });
+
+  stations.forEach(applyResearch);
 
   return json(200, {
     stations: unify(stations),
