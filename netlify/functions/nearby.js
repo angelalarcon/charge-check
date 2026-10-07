@@ -21,12 +21,47 @@ const priceCache = new Map();   // electromaps id -> { at, price, priceText, pay
 // Electromaps lists every charger of a car park separately. Anything within
 // SAME_SPOT_KM is folded into one pin unless the two listings contradict each other.
 const SAME_SPOT_KM = 0.05;
+// Listings with the same street address are one site too (a car park listed at its
+// entrance by one source and at its centre by another), within a looser radius: a
+// street and number pin the site down, a bare street name much less so.
+const SAME_ADDRESS_KM   = 0.3;
+const SAME_STREET_KM    = 0.1;
+
+// Street and number of an address, the part every source writes alike:
+// "Av. Francisco la Roche, 49A, 38001 Santa Cruz de Tenerife, España" → "francisco roche 49a";
+// "C/ Castillo nº 77" and "Calle del Castillo, 77" both → "castillo 77"
+const STREET_TYPES = /^(calle|c|avenida|avda|av|plaza|pza|pl|paseo|po|carretera|ctra|camino|rambla|urbanizacion|urb|poligono|parque|parking|aparcamiento|centro comercial|cc)\b\s*/;
+const tidy = t => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  .replace(/\([^)]*\)/g, ' ').replace(/\bs\s*\/\s*n\b/g, ' ')
+  .replace(/[\/.,º°ª#-]/g, ' ').replace(/\b(n|no|num|numero)\b/g, ' ').replace(/\s+/g, ' ').trim();
+function addressKey(address) {
+  const [first = '', second = ''] = String(address || '').split(',').map(tidy);
+  if (/^\d{5}\b/.test(first)) return null;   // no street, just postcode and town
+  const num = (first.match(/\b(\d+[a-z]?)$/) || second.match(/^(\d+[a-z]?)\b/) || [])[1];
+  let street = first.replace(/\b\d+[a-z]?$/, '').trim();
+  for (let prev; prev !== street;) { prev = street; street = street.replace(STREET_TYPES, ''); }
+  street = street.replace(/\b(de|del|la|las|el|los)\b/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!/[a-z]{3}/.test(street)) return null;
+  return { key: num ? `${street} ${num}` : street, numbered: !!num };
+}
+
+// Same place: within SAME_SPOT_KM, or the same address within its looser radius
+function sameSpot(pin, s) {
+  const km = distanceKm(pin.lat, pin.lon, s.lat, s.lon);
+  if (km <= SAME_SPOT_KM) return true;
+  if (km > SAME_ADDRESS_KM) return false;
+  const a = addressKey(s.address);
+  return !!a && pin.addressKeys.includes(a.key) && km <= (a.numbered ? SAME_ADDRESS_KM : SAME_STREET_KM);
+}
 
 const hasLive = s => s.live;
 
 // Best data first: etecnic (live), then chargers whose price the operator itself gave us
-// (research extras), then Electromaps with live connectors, then the rest
+// (research extras), then Electromaps with live connectors, then the rest; within each,
+// the most complete listing leads the pin and the others only fill what it lacks
 const rank = s => (s.source === 'etecnic' ? 0 : s.source === 'research' ? 0.5 : hasLive(s) ? 1 : 2);
+const completeness = s =>
+  (s.price !== 'unknown') + !!s.priceText + !!s.address + !!s.power + (s.sockets.length > 0) + !!s.payment + !!s.access;
 
 function samePin(pin, s) {
   if (pin.price !== 'unknown' && s.price !== 'unknown' && pin.price !== s.price) return false;
@@ -71,11 +106,16 @@ function absorb(pin, s) {
 
 function unify(stations) {
   const pins = [];
-  for (const s of [...stations].sort((a, b) => rank(a) - rank(b) || a.distance - b.distance)) {
-    const pin = pins.find(p => distanceKm(p.lat, p.lon, s.lat, s.lon) <= SAME_SPOT_KM && samePin(p, s));
-    if (pin) absorb(pin, s);
-    else pins.push({ ...s, sockets: [...s.sockets] });
+  const order = (a, b) => rank(a) - rank(b) || completeness(b) - completeness(a) || a.distance - b.distance;
+  for (const s of [...stations].sort(order)) {
+    const pin = pins.find(p => sameSpot(p, s) && samePin(p, s));
+    const key = addressKey(s.address)?.key;
+    if (pin) {
+      absorb(pin, s);
+      if (key && !pin.addressKeys.includes(key)) pin.addressKeys.push(key);
+    } else pins.push({ ...s, sockets: [...s.sockets], addressKeys: key ? [key] : [] });
   }
+  for (const p of pins) delete p.addressKeys;
   // A car park's chargers are numbered ("…PILAR02", "…PILAR06"); name the group without it
   for (const p of pins) if (p.count > 1) p.name = p.name.replace(/[\s_-]*\d+$/, '') || p.name;
   return pins.sort((a, b) => a.distance - b.distance);
