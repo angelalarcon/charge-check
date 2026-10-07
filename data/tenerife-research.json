@@ -1,6 +1,6 @@
 {
- "about": "Researched data for Tenerife chargers whose price is unknown in the live sources. Only fills unknown fields. Generated 2026-10-04 from: Canarias te Recarga public map (canariasterecarga.com/es/mapa), OpenStreetMap (amenity=charging_station), and chains whose known Tenerife chargers all agree (Lidl, HiperDino, ALDI, Mercadona, DISA, Repsol, BP, McDonald's, Burger King).",
- "generated": "2026-10-04",
+ "about": "Researched data for Tenerife chargers whose price is unknown in the live sources. Only fills unknown fields. Generated 2026-10-04 from: Canarias te Recarga public map (canariasterecarga.com/es/mapa), OpenStreetMap (amenity=charging_station), and chains whose known Tenerife chargers all agree (Lidl, HiperDino, ALDI, Mercadona, DISA, Repsol, BP, McDonald's, Burger King). 'extra' adds chargers no live source lists (APK2 car parks, from the operator's own charging page).",
+ "generated": "2026-10-07",
  "stations": {
   "electromaps:186341": {
    "price": "paid",
@@ -484,6 +484,23 @@
    "source": "Canarias te Recarga",
    "url": "https://canariasterecarga.com/es/p65225",
    "note": "Punto «ITER (Instituto tecnológico y de energías renovables)» de la red Canarias te Recarga"
+  }
+ },
+ "extra": {
+  "research:apk2-weyler": {
+   "name": "APK2 Weyler (aparcamiento)",
+   "address": "Plaza Weyler / Calle del Castillo, 77, 38003 Santa Cruz de Tenerife",
+   "lat": 28.467,
+   "lon": -16.2518,
+   "power": 22,
+   "price": "paid",
+   "priceText": "0,45 €/kWh",
+   "payment": {
+    "name": "Web de APK2"
+   },
+   "source": "APK2 (web de recarga)",
+   "url": "https://apk2gestion.com/es/servicios/puntos-de-recarga",
+   "note": "Aparcamiento APK2 Weyler: 0,45 €/kWh las 24 h (00:00–12:00 y 12:01–23:59), Tipo 2 hasta 22 kW, carga semirrápida. Se paga en la web de APK2 (parking, cargador e importe; enlace y recibo por email), sin app ni tarjeta. Precio comprobado el 07/10/2026"
   }
  }
 }

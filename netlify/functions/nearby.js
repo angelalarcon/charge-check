@@ -3,6 +3,7 @@
 // lat/lon is the reference point (the user, or the map centre) for distance and ordering.
 const {
   distanceKm, overallStatus, getEtecnic, fromEtecnic, getElectromapsInBounds, getElectromapsStation, applyResearch,
+  getResearchStations,
 } = require('../../lib/stations');
 
 const MAX_SPAN    = 1.5;   // degrees; the page stops asking below zoom 11
@@ -23,8 +24,9 @@ const SAME_SPOT_KM = 0.05;
 
 const hasLive = s => s.live;
 
-// Best data first: etecnic (live), then Electromaps with live connectors, then the rest
-const rank = s => (s.source === 'etecnic' ? 0 : hasLive(s) ? 1 : 2);
+// Best data first: etecnic (live), then chargers whose price the operator itself gave us
+// (research extras), then Electromaps with live connectors, then the rest
+const rank = s => (s.source === 'etecnic' ? 0 : s.source === 'research' ? 0.5 : hasLive(s) ? 1 : 2);
 
 function samePin(pin, s) {
   if (pin.price !== 'unknown' && s.price !== 'unknown' && pin.price !== s.price) return false;
@@ -45,7 +47,8 @@ function absorb(pin, s) {
   } else if (pin.status === 'unknown' && s.status !== 'unknown') {
     pin.status = s.status;   // e.g. the map colour of an Electromaps listing without details
   }
-  if (pin.price === 'unknown') Object.assign(pin, { price: s.price, priceText: s.priceText });
+  // The price (and where it came from) of the first listing that knows it
+  if (pin.price === 'unknown') Object.assign(pin, { price: s.price, priceText: s.priceText, research: s.research });
   pin.priceText ||= s.priceText;
   pin.payment   ||= s.payment;
   // An official tariff beats Electromaps' "from" price; two official ones widen the range
@@ -121,6 +124,7 @@ exports.handler = async function (event) {
   const stations = [
     ...(etecnic.status === 'fulfilled' ? etecnic.value : []),
     ...(electromaps.status === 'fulfilled' ? electromaps.value : []),
+    ...getResearchStations(),
   ]
     .filter(inBounds)
     .map(s => ({ ...s, distance: distanceKm(lat, lon, s.lat, s.lon) }))
