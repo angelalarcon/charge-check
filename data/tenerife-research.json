@@ -492,6 +492,7 @@
    "address": "Plaza Weyler / Calle del Castillo, 77, 38003 Santa Cruz de Tenerife",
    "lat": 28.467,
    "lon": -16.2518,
+   "match": "apk",
    "power": 22,
    "price": "paid",
    "priceText": "0,45 €/kWh",

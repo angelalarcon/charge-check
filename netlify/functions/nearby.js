@@ -154,9 +154,12 @@ exports.handler = async function (event) {
   });
 
   stations.forEach(applyResearch);
+  // An extra already shown through its own Electromaps listing needs no second pin
+  const listed = new Set(stations.map(s => s.extraOf).filter(Boolean));
+  const shown = stations.filter(s => !listed.has(s.key));
 
   return json(200, {
-    stations: unify(stations),
+    stations: unify(shown),
     sources: {
       etecnic:     etecnic.status === 'fulfilled' ? 'ok' : etecnic.reason.message,
       electromaps: electromaps.status === 'fulfilled' ? 'ok' : electromaps.reason.message,
