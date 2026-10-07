@@ -312,16 +312,21 @@
       return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${s.lat},${s.lon}`;
     }
 
+    // "3/8 disponibles" when connectors report their status; a site with several charge
+    // points but no live status still says how many it has ("8 puntos de carga")
     function freeSummary(s, night) {
       const st = effective(s, s.status, night);
       if (st === 'night') return cfg(st).label;
+      const n = s.sockets?.length || 0;
+      const points = n > 1 ? `${n} puntos de carga` : '';
+      const known = s.sockets?.filter(sk => sk.status !== 'unknown').length || 0;
       if (st === 'unknown') {
         const down = s.sockets?.filter(sk => sk.status === 'unavailable').length || 0;
-        return down ? `${down}/${s.sockets.length} fuera de servicio` : '';
+        return down ? `${down}/${n} fuera de servicio` : points;
       }
-      if (!s.sockets?.length) return cfg(st).label;
+      if (!known) return [cfg(st).label, points].filter(Boolean).join(' · ');
       const free = s.sockets.filter(sk => sk.status === 'available').length;
-      return `${free}/${s.sockets.length} disponibles`;
+      return `${free}/${n} disponibles`;
     }
 
     // Map pins: grey only when out of service, blue when busy; anything else
@@ -389,6 +394,11 @@
         const src = r.url
           ? `<a href="${esc(r.url)}" target="_blank" rel="noopener" class="underline underline-offset-2 hover:text-white">${esc(r.source)}<i class="fas fa-arrow-up-right-from-square ml-1 text-[9px]"></i></a>`
           : esc(r.source);
+        // Long notes fold behind "Más info" so the popup stays short
+        if (r.note.length > 90) {
+          return `<div class="text-[11px] text-slate-400 mt-1"><p>Fuente: ${src}</p>
+            <details><summary class="cursor-pointer underline underline-offset-2">Más info</summary><p class="mt-1">${esc(r.note)}</p></details></div>`;
+        }
         return `<p class="text-[11px] text-slate-400 mt-1">${r.note ? `${esc(r.note)} · ` : ''}Fuente: ${src}</p>`;
       }
       const t = s.tariff;
@@ -814,6 +824,13 @@
       map = L.map('map', { zoomControl: false });
       L.control.zoom({ zoomInTitle: 'Acercar', zoomOutTitle: 'Alejar' }).addTo(map);
       map.attributionControl.setPrefix(false);
+      // Tailwind styles the popup a moment after Leaflet measured it; measure and pan again
+      // (also after "Más info" unfolds)
+      map.on('popupopen', e => requestAnimationFrame(() => {
+        e.popup.update();
+        e.popup.getElement()?.querySelectorAll('details')
+          .forEach(d => d.addEventListener('toggle', () => e.popup.update()));
+      }));
       fetch(MAP_STYLE_URL)
         .then(r => r.json())
         .then(style => {
@@ -943,7 +960,12 @@
 
     // Leaflet measures the popup when it opens, before Tailwind (CDN) has styled
     // the new markup, so the width is given here rather than via classes
-    const POPUP_OPTIONS = { minWidth: 240, maxWidth: 280 };
+    // maxHeight keeps it inside the 30rem map (taller content scrolls) and the padding
+    // makes the map pan far enough that its top isn't cut off
+    const POPUP_OPTIONS = {
+      minWidth: 240, maxWidth: 280, maxHeight: 340,
+      autoPanPaddingTopLeft: [12, 12], autoPanPaddingBottomRight: [12, 12],
+    };
 
     // Favorites are stars, everything else a dot; both take the pin colour
     const PIN_ORDER = { free: 3, paid: 3, unpriced: 3, busy: 2, unavailable: 0, night: 0 };

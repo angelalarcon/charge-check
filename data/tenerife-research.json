@@ -494,6 +494,7 @@
    "lon": -16.2518,
    "match": "apk",
    "power": 22,
+   "points": 8,
    "price": "paid",
    "priceText": "0,45 €/kWh",
    "payment": {
@@ -501,7 +502,7 @@
    },
    "source": "APK2 (web de recarga)",
    "url": "https://apk2gestion.com/es/servicios/puntos-de-recarga",
-   "note": "Aparcamiento APK2 Weyler: 0,45 €/kWh las 24 h (00:00–12:00 y 12:01–23:59), Tipo 2 hasta 22 kW, carga semirrápida. Se paga en la web de APK2 (parking, cargador e importe; enlace y recibo por email), sin app ni tarjeta. Precio comprobado el 07/10/2026"
+   "note": "APK2 Weyler: 8 puntos Tipo 2 (7,4 o 22 kW), 0,45 €/kWh las 24 h. Se paga en la web de APK2 (parking, cargador e importe; enlace y recibo por email), sin app ni tarjeta. Precio comprobado el 07/10/2026"
   }
  }
 }

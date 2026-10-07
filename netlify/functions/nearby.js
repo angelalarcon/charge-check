@@ -2,7 +2,7 @@
 //   ?latNE=28.48&lngNE=-16.24&latSW=28.46&lngSW=-16.26&lat=28.47&lon=-16.25
 // lat/lon is the reference point (the user, or the map centre) for distance and ordering.
 const {
-  distanceKm, overallStatus, getEtecnic, fromEtecnic, getElectromapsInBounds, getElectromapsStation, applyResearch,
+  distanceKm, overallStatus, withAllPoints, getEtecnic, fromEtecnic, getElectromapsInBounds, getElectromapsStation, applyResearch,
   getResearchStations,
 } = require('../../lib/stations');
 
@@ -78,7 +78,8 @@ function absorb(pin, s) {
     pin.status  = overallStatus([{ status: pin.status }, { status: s.status }]);
     pin.count   = (pin.count || 1) + 1;
   } else if (!hasLive(pin) && hasLive(s)) {
-    Object.assign(pin, { sockets: s.sockets, status: s.status, live: true });
+    // Live connectors, still counting every charge point the pin knew of
+    Object.assign(pin, { sockets: withAllPoints(s.sockets, pin.sockets), status: s.status, live: true });
   } else if (pin.status === 'unknown' && s.status !== 'unknown') {
     pin.status = s.status;   // e.g. the map colour of an Electromaps listing without details
   }
