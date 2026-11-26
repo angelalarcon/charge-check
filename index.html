@@ -549,10 +549,19 @@
         : `<span class="${cls}">${label}</span>`;
     }
 
+    // "8 × 11 kW + 4 × 100 kW" when a site mixes connector powers, otherwise its top power
+    function powerText(s) {
+      const counts = new Map();
+      for (const sk of s.sockets || []) if (sk.kw) counts.set(sk.kw, (counts.get(sk.kw) || 0) + 1);
+      if (counts.size < 2) return s.power ? `${s.power} kW` : '';
+      return [...counts].sort((a, b) => a[0] - b[0])
+        .map(([kw, n]) => `${n} × ${String(kw).replace('.', ',')} kW`).join(' + ');
+    }
+
     function details(s, night, { distance = false } = {}) {
       return [
         freeSummary(s, night),
-        s.power ? `${s.power} kW` : '',
+        powerText(s),
         distance && userPos ? fmtKm(s.distance) : '',
       ].filter(Boolean).join(' · ');
     }

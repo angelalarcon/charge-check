@@ -512,6 +512,18 @@
    "match": "mar[ií]timo",
    "power": 100,
    "points": 12,
+   "connectors": [
+    {
+     "count": 8,
+     "kw": 11,
+     "type": "Tipo 2"
+    },
+    {
+     "count": 4,
+     "kw": 100,
+     "type": "CCS2"
+    }
+   ],
    "price": "free",
    "estimated": true,
    "access": {
