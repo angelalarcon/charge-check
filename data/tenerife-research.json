@@ -532,9 +532,9 @@
      "Llavero Electromaps"
     ]
    },
-   "source": "Ayuntamiento de Santa Cruz (puntos de recarga municipales) + Electromaps + foto en el sitio",
+   "source": "Ayuntamiento de Santa Cruz (puntos de recarga municipales) + Electromaps + comprobado en el sitio",
    "url": "https://www.santacruzdetenerife.es/web/servicios-municipales/movilidad-y-accesibilidad-universal/puntos-de-recarga-municipales",
-   "note": "Punto municipal del aparcamiento del Parque Marítimo, con equipos Schneider Electric (EVlink). Según Electromaps: 8 Tipo 2 de 11 kW y 4 CCS2 de 100 kW, se activa con tarjeta RFID (también marca Electropass), precio 0. Sin confirmar qué tarjeta exacta piden ni que siga siendo gratis. Datos del 26/11/2026"
+   "note": "Punto municipal del aparcamiento del Parque Marítimo, con cargadores Schneider Electric EVlink. Funcionando: probado el 26/11/2026 en un EVlink Pro DC (2 CCS2, plazas 9 y 10, cargando a 59 kW). Se activa acercando una tarjeta RFID al lector de la pantalla. Según Electromaps hay 8 Tipo 2 de 11 kW y 4 CCS2 de 100 kW, precio 0. Sin confirmar qué tarjeta exacta piden ni que siga siendo gratis"
   }
  }
 }
