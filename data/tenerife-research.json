@@ -1,6 +1,6 @@
 {
- "about": "Researched data for Tenerife chargers whose price is unknown in the live sources. Only fills unknown fields. Generated 2026-10-04 from: Canarias te Recarga public map (canariasterecarga.com/es/mapa), OpenStreetMap (amenity=charging_station), and chains whose known Tenerife chargers all agree (Lidl, HiperDino, ALDI, Mercadona, DISA, Repsol, BP, McDonald's, Burger King). 'extra' adds chargers no live source lists (APK2 car parks, from the operator's own charging page).",
- "generated": "2026-10-07",
+ "about": "Researched data for Tenerife chargers whose price is unknown in the live sources. Only fills unknown fields. Generated 2026-10-04 from: Canarias te Recarga public map (canariasterecarga.com/es/mapa), OpenStreetMap (amenity=charging_station), and chains whose known Tenerife chargers all agree (Lidl, HiperDino, ALDI, Mercadona, DISA, Repsol, BP, McDonald's, Burger King). 'extra' adds chargers no live source lists (APK2 car parks, from the operator's own charging page) or that need data the live sources lack (Parque Marítimo's municipal Schneider Electric chargers).",
+ "generated": "2026-11-26",
  "stations": {
   "electromaps:186341": {
    "price": "paid",
@@ -503,6 +503,26 @@
    "source": "APK2 (web de recarga)",
    "url": "https://apk2gestion.com/es/servicios/puntos-de-recarga",
    "note": "APK2 Weyler: 8 puntos Tipo 2 (7,4 o 22 kW), 0,45 €/kWh las 24 h. Se paga en la web de APK2 (parking, cargador e importe; enlace y recibo por email), sin app ni tarjeta. Precio comprobado el 07/10/2026"
+  },
+  "research:parque-maritimo": {
+   "name": "Parque Marítimo (aparcamiento municipal)",
+   "address": "Avenida de la Constitución, 35, 38003 Santa Cruz de Tenerife",
+   "lat": 28.4553,
+   "lon": -16.2525,
+   "match": "mar[ií]timo",
+   "power": 100,
+   "points": 12,
+   "price": "free",
+   "estimated": true,
+   "access": {
+    "cards": [
+     "Tarjeta del Ayuntamiento",
+     "Llavero Electromaps"
+    ]
+   },
+   "source": "Ayuntamiento de Santa Cruz (puntos de recarga municipales) + Electromaps + foto en el sitio",
+   "url": "https://www.santacruzdetenerife.es/web/servicios-municipales/movilidad-y-accesibilidad-universal/puntos-de-recarga-municipales",
+   "note": "Punto municipal del aparcamiento del Parque Marítimo, con equipos Schneider Electric (EVlink). Según Electromaps: 8 Tipo 2 de 11 kW y 4 CCS2 de 100 kW, se activa con tarjeta RFID (también marca Electropass), precio 0. Sin confirmar qué tarjeta exacta piden ni que siga siendo gratis. Datos del 26/11/2026"
   }
  }
 }
