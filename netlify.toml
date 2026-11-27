@@ -1,3 +1,17 @@
 [build]
   publish = "."
   functions = "netlify/functions"
+
+# Security headers for every page and function response.
+# CSP: scripts only from this site and unpkg (each pinned with an integrity hash in
+# index.html) and no inline script at all, so injected markup can't run code; inline
+# styles stay allowed (Leaflet and the page set them). Map tiles, sun times and the
+# functions are fetched over HTTPS; MapLibre draws in blob: workers.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Content-Security-Policy = "default-src 'self'; script-src 'self' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob: https:; connect-src 'self' https:; worker-src 'self' blob:; child-src blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'"
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "geolocation=(self), camera=(), microphone=(), payment=()"

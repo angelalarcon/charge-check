@@ -88,7 +88,8 @@ ${cells}
     statusCode: 200,
     headers: {
       'Content-Type': 'image/svg+xml',
-      'Cache-Control': 'no-store',
+      'Cache-Control': 'public, max-age=0, must-revalidate',
+      'Netlify-CDN-Cache-Control': 'public, durable, s-maxage=60',
     },
     body: svg,
   };

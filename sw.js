@@ -1,4 +1,4 @@
-const CACHE = 'ev-v5';
+const CACHE = 'ev-v6';
 
 // ── Icon generation via OffscreenCanvas ─────────────────────────────
 // Same FA6 paths used on the page, pre-built once at parse time

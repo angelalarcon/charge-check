@@ -16,6 +16,17 @@ const DETAIL_CONCURRENCY = 10;
 const PRICE_TTL          = 6 * 3600_000;
 const priceCache = new Map();   // electromaps id -> { at, price, priceText, payment, tariff, access }
 
+// Electromaps detail requests one warm instance may make per minute, whoever calls this
+// function and however often: beyond it stations keep their cached price, or none
+const DETAIL_BUDGET = 300;
+let budget = { at: 0, left: DETAIL_BUDGET };
+function takeDetailBudget(n) {
+  if (Date.now() - budget.at > 60_000) budget = { at: Date.now(), left: DETAIL_BUDGET };
+  const granted = Math.min(n, budget.left);
+  budget.left -= granted;
+  return granted;
+}
+
 // The same charger often shows up more than once: Electromaps users add the
 // municipal IMESAPI chargers under their own names tens of metres off, and
 // Electromaps lists every charger of a car park separately. Anything within
@@ -129,10 +140,16 @@ async function mapLimit(items, limit, fn) {
   }));
 }
 
-function json(statusCode, body) {
+// Netlify's CDN keeps each answer for a minute (the page asks for the same snapped
+// areas), so repeated calls don't each reach etecnic and Electromaps; browsers don't keep it
+function json(statusCode, body, { cache = false } = {}) {
   return {
     statusCode,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'public, max-age=0, must-revalidate',
+      ...(cache && { 'Netlify-CDN-Cache-Control': 'public, durable, s-maxage=60, stale-while-revalidate=30' }),
+    },
     body: JSON.stringify(body),
   };
 }
@@ -159,7 +176,8 @@ exports.handler = async function (event) {
   ]);
 
   if (etecnic.status === 'rejected' && electromaps.status === 'rejected') {
-    return json(502, { error: `${etecnic.reason.message}; ${electromaps.reason.message}` });
+    console.error('nearby: both sources failed', etecnic.reason, electromaps.reason);
+    return json(502, { error: 'Sources unavailable' });
   }
 
   const stations = [
@@ -184,6 +202,7 @@ exports.handler = async function (event) {
     }
     if (!fresh || s.status === 'available') toDetail.push(s);
   }
+  toDetail.length = takeDetailBudget(toDetail.length);
   await mapLimit(toDetail, DETAIL_CONCURRENCY, async s => {
     try {
       const d = await getElectromapsStation(s.id);
@@ -202,8 +221,9 @@ exports.handler = async function (event) {
   return json(200, {
     stations: unify(shown),
     sources: {
-      etecnic:     etecnic.status === 'fulfilled' ? 'ok' : etecnic.reason.message,
-      electromaps: electromaps.status === 'fulfilled' ? 'ok' : electromaps.reason.message,
+      etecnic:     etecnic.status === 'fulfilled' ? 'ok' : 'error',
+      electromaps: electromaps.status === 'fulfilled' ? 'ok' : 'error',
     },
-  });
+  // A source that failed shouldn't stay missing for everyone for a minute
+  }, { cache: etecnic.status === 'fulfilled' && electromaps.status === 'fulfilled' });
 };

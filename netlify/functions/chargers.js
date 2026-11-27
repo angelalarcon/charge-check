@@ -24,7 +24,7 @@ exports.handler = async function (event) {
       if (key.startsWith('research:')) return fromResearch(key) || { key, error: 'not found' };
       if (key.startsWith('electromaps:')) {
         try { return await getElectromapsStation(key.slice(12)); }
-        catch (e) { return { key, error: e.message }; }
+        catch (e) { console.error('chargers:', key, e); return { key, error: 'unavailable' }; }
       }
       return { key, error: 'not found' };
     }));
@@ -32,14 +32,21 @@ exports.handler = async function (event) {
 
     return {
       statusCode: 200,
-      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+      // Shared by everyone with the same favourites for 15 s on Netlify's CDN (they refresh
+      // every 30 s), so repeated calls don't each reach the sources
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'public, max-age=0, must-revalidate',
+        'Netlify-CDN-Cache-Control': 'public, durable, s-maxage=15',
+      },
       body: JSON.stringify(stations),
     };
   } catch (e) {
+    console.error('chargers:', e);
     return {
       statusCode: 502,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: e.message }),
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+      body: JSON.stringify({ error: 'Sources unavailable' }),
     };
   }
 };

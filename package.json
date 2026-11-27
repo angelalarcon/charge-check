@@ -1,0 +1,7 @@
+{
+  "name": "charge-check",
+  "private": true,
+  "scripts": {
+    "css": "npx -y tailwindcss@3.4.17 -i ./tailwind.css -o ./styles.css --minify"
+  }
+}
